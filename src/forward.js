@@ -1,4 +1,5 @@
 /* eslint no-use-before-define: 0 */
+const _ = require('lodash');
 const httpConnect = require('./connect');
 const hrefParser = require('./hrefParser');
 
@@ -12,7 +13,10 @@ module.exports = (
     res.end();
     return;
   }
-  const connect = httpConnect(options, {
+  const connect = httpConnect({
+    ...hrefOptions,
+    ..._.omit(options, ['url']),
+  }, {
     onData,
     onResponse,
     onError,

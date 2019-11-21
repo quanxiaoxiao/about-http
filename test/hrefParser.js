@@ -18,6 +18,12 @@ test('href parser', (t) => {
     hostname: 'www.baidu.com',
     path: '/',
   });
+  t.deepEqual(parser('http://localhost:3099/visual'), {
+    schema: http,
+    port: 3099,
+    hostname: 'localhost',
+    path: '/visual',
+  });
   t.deepEqual(parser('http://192.168.0.111:3000?name=quan'), {
     schema: http,
     port: 3000,
