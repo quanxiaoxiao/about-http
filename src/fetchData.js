@@ -4,10 +4,10 @@ const hrefParser = require('./hrefParser');
 
 module.exports = (options) => new Promise((resolve, reject) => {
   const hrefOptions = hrefParser(options.url);
-  if (hrefOptions) {
+  if (!hrefOptions) {
     const error = new Error('parse href error');
     error.statusCode = 500;
-    reject();
+    reject(error);
   } else {
     const bufList = [];
     let size = 0;
@@ -24,7 +24,7 @@ module.exports = (options) => new Promise((resolve, reject) => {
       onResponse: (res) => {
         if (options.match && !options.match(res.statusCode, res.headers)) {
           connect();
-          const error = new Error();
+          const error = new Error('not match');
           error.statusCode = res.statusCode;
           reject(error);
         }
