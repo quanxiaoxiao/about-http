@@ -21,7 +21,7 @@ module.exports = (options) => new Promise((resolve, reject) => {
       onResponse: (res) => {
         if (options.match && !options.match(res.statusCode, res.headers)) {
           connect();
-          reject(createError(res.statusCode || 500));
+          reject();
         }
       },
       onData: (chunk) => {
