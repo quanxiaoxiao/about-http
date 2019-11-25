@@ -54,8 +54,10 @@ module.exports = (
     res = r;
     function handleResEnd() {
       state.isConnect = false;
-      onEnd();
-      state.isClose = true;
+      if (!state.isClose) {
+        onEnd();
+        state.isClose = true;
+      }
       res.off('data', handleResData);
       res.off('end', handleResEnd);
       res.off('close', handleResEnd);
@@ -67,8 +69,10 @@ module.exports = (
 
     function handleResSocketClose() {
       state.isConnect = false;
-      onClose();
-      state.isClose = true;
+      if (!state.isClose) {
+        onClose();
+        state.isClose = true;
+      }
       res.off('data', handleResData);
       res.off('end', handleResEnd);
       res.off('close', handleResEnd);

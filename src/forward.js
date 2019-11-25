@@ -9,7 +9,7 @@ module.exports = (
 ) => {
   const hrefOptions = hrefParser(options.url);
   if (!hrefOptions) {
-    res.writeHead(500);
+    res.writeHead(500, 'forward href invalid');
     res.end();
     return;
   }
@@ -26,10 +26,10 @@ module.exports = (
 
   function onError(error) {
     console.error(error);
-    if (res.headersSent) {
-      res.writeHead(502);
-      res.end();
-    } else if (error) {
+    if (!res.headersSent) {
+      res.writeHead(error.statusCode || error.status || 502);
+    }
+    if (error) {
       res.end(error.message);
     }
     cleanup();
@@ -68,11 +68,18 @@ module.exports = (
   function cleanup() {
     res.off('drain', handleDrain);
     res.off('close', handleClose);
+    res.off('error', handleError);
     if (res.socket) {
       res.socket.off('close', handleClose);
     }
   }
 
+  function handleError() {
+    connect();
+    cleanup();
+  }
+
+  res.once('error', handleError);
   res.on('drain', handleDrain);
   res.once('close', handleClose);
   res.socket.once('close', handleClose);
