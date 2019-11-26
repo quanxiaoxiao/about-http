@@ -9,7 +9,8 @@ module.exports = (
 ) => {
   const hrefOptions = hrefParser(options.url);
   if (!hrefOptions) {
-    res.writeHead(500, 'forward href invalid');
+    console.error('forward url invalid');
+    res.writeHead(500, {});
     res.end();
     return;
   }
@@ -27,7 +28,7 @@ module.exports = (
   function onError(error) {
     console.error(error);
     if (!res.headersSent) {
-      res.writeHead(error.statusCode || error.status || 502);
+      res.writeHead(error.statusCode || error.status || 502, {});
     }
     if (error) {
       res.end(error.message);

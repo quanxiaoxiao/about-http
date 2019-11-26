@@ -16,8 +16,22 @@ const { httpConnect, httpForward , fetchData, receiveData, receiveJSON } = requi
 // fetchData(options)
 // receiveData(httpRequest, limit)
 // receiveData(httpRequest, limit = 3MB)
+// connectWebSocket(options, httpRequest, socket)
 ```
 
 options
 - **url** https://my.com/pathname
 - **body** buffer || stream || string
+
+
+```javascript
+server.on('upgrade', (req, socket) => {
+  if (req.url === '/ws') {
+    connectWebSocket({
+      url: 'wss://quan/ws',
+    }, req, socket);
+  } else {
+    socket.destroy();
+  }
+});
+```

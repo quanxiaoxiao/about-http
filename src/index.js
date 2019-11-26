@@ -3,6 +3,7 @@ const forward = require('./forward');
 const fetchData = require('./fetchData');
 const receiveData = require('./receiveData');
 const receiveJSON = require('./receiveJSON');
+const connectWebSocket = require('./connectWebSocket');
 
 module.exports = {
   httpConnect: connect,
@@ -10,4 +11,5 @@ module.exports = {
   fetchData,
   receiveData,
   receiveJSON,
+  webSocketConnect: connectWebSocket,
 };
