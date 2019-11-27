@@ -17,7 +17,7 @@ const createHttpHeader = (line, headers) => `${Object.keys(headers).reduce((head
 }, [line]).join('\r\n')}\r\n\r\n`;
 
 module.exports = ({ url: href, ...other }, req, socket) => {
-  if (!/^wss?:\/\/w+/.test(href)) {
+  if (!/^wss?:\/\/.+/.test(href)) {
     console.error('web socket url invalid');
     socket.destroy();
     return;
