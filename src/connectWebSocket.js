@@ -52,6 +52,8 @@ module.exports = ({ url: href, ...other }, req, socket) => {
   }
 
   function handleProxyReqResponse(proxyRes) {
+    proxyReq.on('error', () => {});
+    proxyRes.on('error', () => {});
     proxyReq.off('error', handleProxyReqError);
     if (!proxyRes.upgrade) {
       socket.on('error', () => {});
@@ -61,12 +63,14 @@ module.exports = ({ url: href, ...other }, req, socket) => {
   }
 
   function handleProxyReqUpgrade(proxyRes, proxySocket) {
+    proxyRes.on('error', () => {});
+    proxyReq.on('error', () => {});
     proxyRes.off('response', handleProxyReqResponse);
     proxyReq.off('error', handleProxyReqError);
-    socket.once('error', () => {
+    socket.on('error', () => {
       proxySocket.end();
     });
-    proxySocket.once('error', () => {
+    proxySocket.on('error', () => {
       socket.end();
     });
     socket.write(createHttpHeader('HTTP/1.1 101 Switching Protocols', proxyRes.headers));

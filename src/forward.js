@@ -69,7 +69,6 @@ module.exports = (
   function cleanup() {
     res.off('drain', handleDrain);
     res.off('close', handleClose);
-    res.off('error', handleError);
     if (res.socket) {
       res.socket.off('close', handleClose);
     }
@@ -80,7 +79,7 @@ module.exports = (
     cleanup();
   }
 
-  res.once('error', handleError);
+  res.on('error', handleError);
   res.on('drain', handleDrain);
   res.once('close', handleClose);
   res.socket.once('close', handleClose);

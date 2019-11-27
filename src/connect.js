@@ -95,8 +95,8 @@ module.exports = (
 
     if (state.isConnect && !state.isClose) {
       onResponse(res);
+      req.on('error', handleError);
       req.off('error', handleReqError);
-      req.once('error', handleError);
       res.on('data', handleResData);
       res.once('end', handleResEnd);
       res.once('close', handleResEnd);
@@ -110,7 +110,7 @@ module.exports = (
     }
   }
 
-  req.once('error', handleReqError);
+  req.on('error', handleReqError);
   req.once('response', handleResponse);
 
   if (body == null) {
@@ -128,6 +128,7 @@ module.exports = (
       req.abort();
     }
     state.isConnect = false;
+    req.off('response', handleResponse);
   };
 
   connect.resume = () => {
