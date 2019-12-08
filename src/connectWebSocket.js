@@ -16,9 +16,15 @@ const createHttpHeader = (line, headers) => `${Object.keys(headers).reduce((head
   return head;
 }, [line]).join('\r\n')}\r\n\r\n`;
 
-module.exports = ({ url: href, ...other }, req, socket) => {
+module.exports = ({
+  url: href,
+  logger,
+  ...other
+}, req, socket) => {
   if (!/^wss?:\/\/.+/.test(href)) {
-    console.error('web socket url invalid');
+    if (logger && logger.error) {
+      logger.error('web socket url invalid');
+    }
     socket.destroy();
     return;
   }
@@ -44,7 +50,9 @@ module.exports = ({ url: href, ...other }, req, socket) => {
   });
 
   function handleProxyReqError(error) {
-    console.error(error);
+    if (logger && logger.error) {
+      logger.error(error);
+    }
     proxyReq.off('response', handleProxyReqResponse);
     proxyReq.off('upgrade', handleProxyReqUpgrade);
     proxyReq.abort();

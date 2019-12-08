@@ -9,14 +9,16 @@ module.exports = (
 ) => {
   const hrefOptions = hrefParser(options.url);
   if (!hrefOptions) {
-    console.error('forward url invalid');
+    if (options.logger && options.logger.error) {
+      options.logger.error('forward url invalid');
+    }
     res.writeHead(500, {});
     res.end();
     return;
   }
   const connect = httpConnect({
     ...hrefOptions,
-    ..._.omit(options, ['url']),
+    ..._.omit(options, ['url', 'logger']),
   }, {
     onData,
     onResponse,
@@ -26,7 +28,9 @@ module.exports = (
   });
 
   function onError(error) {
-    console.error(error);
+    if (options.logger && options.logger.error) {
+      options.logger.error(error);
+    }
     if (!res.headersSent) {
       res.writeHead(error.statusCode || error.status || 502, {});
     }
