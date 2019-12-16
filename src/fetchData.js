@@ -13,9 +13,11 @@ module.exports = (options) => new Promise((resolve, reject) => {
     const connect = httpConnect(_.omit({
       ...hrefOptions,
       ...options,
-    }, ['match', 'url']), {
+    }, ['match', 'url', 'logger']), {
       onError: (err) => {
-        console.error(err);
+        if (options.logger && options.logger.error) {
+          options.logger.error(err);
+        }
         reject(createError(err.statusCode || err.status || 502));
       },
       onResponse: (res) => {
