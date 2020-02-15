@@ -1,6 +1,6 @@
 /* eslint no-use-before-define: 0 */
 
-module.exports = (res, limit) => new Promise((resolve, reject) => {
+module.exports = (req, limit) => new Promise((resolve, reject) => {
   const buf = [];
   let size = 0;
   function handleData(chunk) {
@@ -19,15 +19,15 @@ module.exports = (res, limit) => new Promise((resolve, reject) => {
     reject();
     cleanup();
   }
-  res.on('data', handleData);
-  res.once('end', handleEnd);
-  res.socket.once('close', handleClose);
-  res.once('close', handleClose);
+  req.on('data', handleData);
+  req.once('end', handleEnd);
+  req.socket.once('close', handleClose);
+  req.once('close', handleClose);
 
   function cleanup() {
-    res.off('data', handleData);
-    res.off('end', handleEnd);
-    res.socket.off('close', handleClose);
-    res.off('close', handleClose);
+    req.off('data', handleData);
+    req.off('end', handleEnd);
+    req.socket.off('close', handleClose);
+    req.off('close', handleClose);
   }
 });
