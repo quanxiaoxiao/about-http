@@ -1,7 +1,7 @@
-import test from 'ava';
-import https from 'https';
-import http from 'http';
-import parser from '../src/hrefParser';
+const test = require('ava');
+const https = require('https');
+const http = require('http');
+const parser = require('../src/hrefParser');
 
 test('href parser', (t) => {
   t.is(parser('www.baidu.com'), null);

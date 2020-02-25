@@ -5,15 +5,15 @@ const hrefParser = require('./hrefParser');
 
 module.exports = (
   options,
-  res,
+  httpResponse,
 ) => {
   const hrefOptions = hrefParser(options.url);
   if (!hrefOptions) {
     if (options.logger && options.logger.error) {
       options.logger.error('forward url invalid');
     }
-    res.writeHead(500, {});
-    res.end();
+    httpResponse.writeHead(500, {});
+    httpResponse.end();
     return;
   }
   const connect = httpConnect({
@@ -31,31 +31,31 @@ module.exports = (
     if (options.logger && options.logger.error) {
       options.logger.error(error);
     }
-    if (!res.headersSent) {
-      res.writeHead(error.statusCode || error.status || 502, {});
+    if (!httpResponse.headersSent) {
+      httpResponse.writeHead(error.statusCode || error.status || 502, {});
     }
     if (error) {
-      res.end(error.message);
+      httpResponse.end(error.message);
     }
     cleanup();
   }
 
   function onResponse(r) {
-    res.writeHead(r.statusCode, r.headers);
+    httpResponse.writeHead(r.statusCode, r.headers);
   }
 
   function onClose() {
-    res.end();
+    httpResponse.end();
     cleanup();
   }
 
   function onEnd() {
-    res.end();
+    httpResponse.end();
     cleanup();
   }
 
   function onData(chunk) {
-    const ret = res.write(chunk);
+    const ret = httpResponse.write(chunk);
     if (!ret) {
       connect.pause();
     }
@@ -71,10 +71,10 @@ module.exports = (
   }
 
   function cleanup() {
-    res.off('drain', handleDrain);
-    res.off('close', handleClose);
-    if (res.socket) {
-      res.socket.off('close', handleClose);
+    httpResponse.off('drain', handleDrain);
+    httpResponse.off('close', handleClose);
+    if (httpResponse.socket) {
+      httpResponse.socket.off('close', handleClose);
     }
   }
 
@@ -83,8 +83,8 @@ module.exports = (
     cleanup();
   }
 
-  res.on('error', handleError);
-  res.on('drain', handleDrain);
-  res.once('close', handleClose);
-  res.socket.once('close', handleClose);
+  httpResponse.on('error', handleError);
+  httpResponse.on('drain', handleDrain);
+  httpResponse.once('close', handleClose);
+  httpResponse.socket.once('close', handleClose);
 };

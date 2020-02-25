@@ -22,9 +22,9 @@ module.exports = (
     isClose: false,
   };
 
-  const req = schema.request(other);
+  const httpRequest = schema.request(other);
 
-  let res;
+  let httpResponse;
 
   const handleReqSocket = (socket) => {
     if (!state.isClose) {
@@ -36,34 +36,34 @@ module.exports = (
     }
   };
 
-  req.once('socket', handleReqSocket);
+  httpRequest.once('socket', handleReqSocket);
 
   function handleReqError(error) {
-    req.off('response', handleResponse);
-    req.off('socket', handleReqSocket);
+    httpRequest.off('response', handleResponse);
+    httpRequest.off('socket', handleReqSocket);
     if (!state.isClose) {
       state.isClose = true;
       onError(error);
-      req.abort();
+      httpRequest.abort();
     }
     state.isConnect = false;
   }
 
 
   function handleResponse(r) {
-    res = r;
+    httpResponse = r;
     function handleResEnd() {
       state.isConnect = false;
       if (!state.isClose) {
         onEnd();
         state.isClose = true;
       }
-      res.off('data', handleResData);
-      res.off('end', handleResEnd);
-      res.off('close', handleResEnd);
-      req.off('error', handleError);
-      if (res.socket) {
-        res.socket.off('close', handleResSocketClose);
+      httpResponse.off('data', handleResData);
+      httpResponse.off('end', handleResEnd);
+      httpResponse.off('close', handleResEnd);
+      httpRequest.off('error', handleError);
+      if (httpResponse.socket) {
+        httpResponse.socket.off('close', handleResSocketClose);
       }
     }
 
@@ -73,19 +73,19 @@ module.exports = (
         onClose();
         state.isClose = true;
       }
-      res.off('data', handleResData);
-      res.off('end', handleResEnd);
-      res.off('close', handleResEnd);
-      req.off('error', handleError);
+      httpResponse.off('data', handleResData);
+      httpResponse.off('end', handleResEnd);
+      httpResponse.off('close', handleResEnd);
+      httpRequest.off('error', handleError);
     }
     function handleError(error) {
-      res.off('data', handleResData);
-      res.off('end', handleResEnd);
-      res.off('close', handleResEnd);
-      if (res.socket) {
-        res.socket.off('close', handleResSocketClose);
+      httpResponse.off('data', handleResData);
+      httpResponse.off('end', handleResEnd);
+      httpResponse.off('close', handleResEnd);
+      if (httpResponse.socket) {
+        httpResponse.socket.off('close', handleResSocketClose);
       }
-      res.destroy();
+      httpResponse.destroy();
       state.isConnect = false;
       if (!state.isClose) {
         state.isClose = true;
@@ -94,13 +94,13 @@ module.exports = (
     }
 
     if (state.isConnect && !state.isClose) {
-      onResponse(res);
-      req.on('error', handleError);
-      req.off('error', handleReqError);
-      res.on('data', handleResData);
-      res.once('end', handleResEnd);
-      res.once('close', handleResEnd);
-      res.socket.once('close', handleResSocketClose);
+      onResponse(httpResponse);
+      httpRequest.on('error', handleError);
+      httpRequest.off('error', handleReqError);
+      httpResponse.on('data', handleResData);
+      httpResponse.once('end', handleResEnd);
+      httpResponse.once('close', handleResEnd);
+      httpResponse.socket.once('close', handleResSocketClose);
     }
   }
 
@@ -110,36 +110,36 @@ module.exports = (
     }
   }
 
-  req.on('error', handleReqError);
-  req.once('response', handleResponse);
+  httpRequest.on('error', handleReqError);
+  httpRequest.once('response', handleResponse);
 
   if (body == null) {
-    req.end();
+    httpRequest.end();
   } else if (body && body.pipe) {
-    body.pipe(req);
+    body.pipe(httpRequest);
   } else if (typeof body === 'string' || Buffer.isBuffer(body)) {
-    req.end(body);
+    httpRequest.end(body);
   } else {
-    req.end();
+    httpRequest.end();
   }
   const connect = () => {
     if (!state.isClose) {
       state.isClose = true;
-      req.abort();
+      httpRequest.abort();
     }
     state.isConnect = false;
-    req.off('response', handleResponse);
+    httpRequest.off('response', handleResponse);
   };
 
   connect.resume = () => {
-    if (state.isConnect && !state.isClose && res) {
-      res.resume();
+    if (state.isConnect && !state.isClose && httpResponse) {
+      httpResponse.resume();
     }
   };
 
   connect.pause = () => {
-    if (state.isConnect && !state.isClose && res) {
-      res.pause();
+    if (state.isConnect && !state.isClose && httpResponse) {
+      httpResponse.pause();
     }
   };
 

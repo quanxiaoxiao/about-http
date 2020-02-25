@@ -1,6 +1,6 @@
-import net from 'net';
-import test from 'ava';
-import connect from '../src/connect';
+const net = require('net');
+const test = require('ava');
+const connect = require('../src/connect');
 
 test.before((t) => {
   const server = net.createServer((socket) => {
