@@ -7,6 +7,10 @@ module.exports = (
   options,
   httpResponse,
 ) => {
+  const state = {
+    isCleanup: false,
+    isClose: false,
+  };
   const hrefOptions = hrefParser(options.url);
   if (!hrefOptions) {
     if (options.logger && options.logger.error) {
@@ -31,33 +35,42 @@ module.exports = (
     if (options.logger && options.logger.error) {
       options.logger.error(error);
     }
-    if (!httpResponse.headersSent) {
+    if (!httpResponse.headersSent && !state.isClose) {
       httpResponse.writeHead(error.statusCode || error.status || 502, {});
     }
-    if (error) {
+    if (error && !state.isClose) {
       httpResponse.end(error.message);
     }
-    cleanup();
   }
 
-  function onResponse(r) {
-    httpResponse.writeHead(r.statusCode, r.headers);
+  function onResponse(res) {
+    if (!state.isClose) {
+      httpResponse.writeHead(res.statusCode, res.headers);
+    } else {
+      connect();
+    }
   }
 
   function onClose() {
-    httpResponse.end();
-    cleanup();
+    if (!state.isClose) {
+      httpResponse.end();
+    }
   }
 
   function onEnd() {
-    httpResponse.end();
-    cleanup();
+    if (!state.isClose) {
+      httpResponse.end();
+    }
   }
 
   function onData(chunk) {
-    const ret = httpResponse.write(chunk);
-    if (!ret) {
-      connect.pause();
+    if (!state.isClose) {
+      const ret = httpResponse.write(chunk);
+      if (!ret) {
+        connect.pause();
+      }
+    } else {
+      connect();
     }
   }
 
@@ -66,24 +79,29 @@ module.exports = (
   }
 
   function handleClose() {
+    state.isClose = true;
     connect();
     cleanup();
   }
 
   function cleanup() {
-    httpResponse.off('drain', handleDrain);
-    httpResponse.off('close', handleClose);
-    if (httpResponse.socket) {
-      httpResponse.socket.off('close', handleClose);
+    if (!state.isCleanup) {
+      state.isCleanup = true;
+      httpResponse.off('drain', handleDrain);
+      httpResponse.off('close', handleClose);
+      if (httpResponse.socket) {
+        httpResponse.socket.off('close', handleClose);
+      }
     }
   }
 
   function handleError() {
+    state.isClose = true;
     connect();
     cleanup();
   }
 
-  httpResponse.on('error', handleError);
+  httpResponse.once('error', handleError);
   httpResponse.on('drain', handleDrain);
   httpResponse.once('close', handleClose);
   httpResponse.socket.once('close', handleClose);
