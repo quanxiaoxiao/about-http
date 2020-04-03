@@ -11,6 +11,7 @@ module.exports = (
     onClose,
   },
 ) => {
+  let httpResponse;
   const {
     schema = http,
     body,
@@ -20,19 +21,24 @@ module.exports = (
   const state = {
     isConnect: false,
     isClose: false,
+    isErrorEmit: false,
+    isCloseEmit: false,
+    isEndEmit: false,
+    isCleanup: false,
   };
 
   const httpRequest = schema.request(other);
 
-  let httpResponse;
+  const handleSocketConnect = () => {
+    if (!state.isClose) {
+      state.isConnect = true;
+    }
+  };
+
 
   const handleReqSocket = (socket) => {
     if (!state.isClose) {
-      socket.once('connect', () => {
-        if (!state.isClose) {
-          state.isConnect = true;
-        }
-      });
+      socket.once('connect', handleSocketConnect);
     }
   };
 
@@ -40,67 +46,77 @@ module.exports = (
 
   function handleReqError(error) {
     httpRequest.off('response', handleResponse);
-    httpRequest.off('socket', handleReqSocket);
-    if (!state.isClose) {
-      state.isClose = true;
-      onError(error);
-      httpRequest.abort();
+    if (!httpRequest.socket) {
+      httpRequest.off('socket', handleReqSocket);
+    } else if (httpRequest.socket.connecting) {
+      httpRequest.socket.off('socket', handleSocketConnect);
     }
     state.isConnect = false;
+    if (!state.isClose && !state.isErrorEmit) {
+      state.isErrorEmit = true;
+      onError(error);
+    }
+    state.isClose = true;
   }
 
 
   function handleResponse(r) {
     httpResponse = r;
     function handleResEnd() {
-      state.isConnect = false;
-      if (!state.isClose) {
+      if (!state.isClose
+        && !state.isEndEmit
+        && !state.isCloseEmit
+        && !state.isErrorEmit
+      ) {
+        state.isEndEmit = true;
         onEnd();
-        state.isClose = true;
       }
-      httpResponse.off('data', handleResData);
-      httpResponse.off('end', handleResEnd);
-      httpResponse.off('close', handleResEnd);
-      httpRequest.off('error', handleError);
-      if (httpResponse.socket) {
-        httpResponse.socket.off('close', handleResSocketClose);
-      }
+      state.isConnect = false;
+      state.isClose = true;
+      cleanup();
     }
 
     function handleResSocketClose() {
       state.isConnect = false;
-      if (!state.isClose) {
+      if (!state.isClose && !state.isErrorEmit && !state.isCloseEmit) {
+        state.isCloseEmit = true;
         onClose();
-        state.isClose = true;
       }
-      httpResponse.off('data', handleResData);
-      httpResponse.off('end', handleResEnd);
-      httpResponse.off('close', handleResEnd);
-      httpRequest.off('error', handleError);
+      state.isClose = true;
+      cleanup();
     }
     function handleError(error) {
-      httpResponse.off('data', handleResData);
-      httpResponse.off('end', handleResEnd);
-      httpResponse.off('close', handleResEnd);
-      if (httpResponse.socket) {
-        httpResponse.socket.off('close', handleResSocketClose);
-      }
-      httpResponse.destroy();
       state.isConnect = false;
-      if (!state.isClose) {
-        state.isClose = true;
+      if (!state.isErrorEmit && !state.isClose) {
+        state.isErrorEmit = true;
         onError(error);
       }
+      state.isClose = true;
+      cleanup();
     }
 
     if (state.isConnect && !state.isClose) {
       onResponse(httpResponse);
-      httpRequest.on('error', handleError);
+      httpRequest.once('error', handleError);
       httpRequest.off('error', handleReqError);
       httpResponse.on('data', handleResData);
       httpResponse.once('end', handleResEnd);
       httpResponse.once('close', handleResEnd);
-      httpResponse.socket.once('close', handleResSocketClose);
+      if (httpResponse.socket) {
+        httpResponse.socket.once('close', handleResSocketClose);
+      }
+    }
+
+    function cleanup() {
+      if (!state.isCleanup) {
+        state.isCleanup = true;
+        httpResponse.off('data', handleResData);
+        httpResponse.off('end', handleResEnd);
+        httpResponse.off('close', handleResEnd);
+        if (httpResponse.socket) {
+          httpResponse.socket.off('close', handleResSocketClose);
+        }
+      }
     }
   }
 
@@ -122,13 +138,16 @@ module.exports = (
   } else {
     httpRequest.end();
   }
+
   const connect = () => {
-    if (!state.isClose) {
-      state.isClose = true;
+    state.isClose = true;
+    if (!httpResponse) {
+      httpRequest.off('response', handleResponse);
       httpRequest.abort();
+    } else if (!httpResponse.destroyed) {
+      httpResponse.destroy();
     }
     state.isConnect = false;
-    httpRequest.off('response', handleResponse);
   };
 
   connect.resume = () => {
