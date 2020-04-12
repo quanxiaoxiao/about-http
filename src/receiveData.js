@@ -3,37 +3,38 @@
 module.exports = (req, limit) => new Promise((resolve, reject) => {
   const state = {
     isCleanup: false,
-    isFinished: false,
+    isDone: false,
   };
   const buf = [];
   let size = 0;
   function handleData(chunk) {
-    size += chunk.length;
-    buf.push(chunk);
-    if (limit && size > limit) {
-      if (!state.isFinished) {
+    if (!state.isDone) {
+      size += chunk.length;
+      buf.push(chunk);
+      if (limit && size > limit) {
+        state.isDone = true;
         reject(new Error(`buffer size exceed ${size}`));
+        req.destroy();
       }
-      req.destroy();
     }
   }
   function handleEnd() {
-    if (!state.isFinished) {
-      state.isFinished = true;
+    if (!state.isDone) {
+      state.isDone = true;
       resolve(Buffer.concat(buf, size));
     }
     cleanup();
   }
   function handleClose() {
-    if (!state.isFinished) {
-      state.isFinished = true;
+    if (!state.isDone) {
+      state.isDone = true;
       reject(new Error('request is close'));
     }
     cleanup();
   }
   function handleError(error) {
-    if (state.isFinished) {
-      state.isFinished = true;
+    if (!state.isDone) {
+      state.isDone = true;
       reject(error);
     }
     cleanup();

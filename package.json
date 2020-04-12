@@ -1,6 +1,6 @@
 {
   "name": "@quanxiaoxiao/about-http",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "",
   "keywords": [],
   "author": "",
@@ -17,7 +17,7 @@
     "lodash": "^4.17.15"
   },
   "devDependencies": {
-    "ava": "^3.5.2",
+    "ava": "^3.6.0",
     "babel-eslint": "^10.1.0",
     "eslint": "^6.8.0",
     "eslint-config-airbnb": "^18.1.0",
