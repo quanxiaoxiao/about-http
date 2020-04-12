@@ -7,6 +7,9 @@ module.exports = (
   options,
   httpResponse,
 ) => {
+  if (!httpResponse.writable) {
+    return;
+  }
   const state = {
     isCleanup: false,
     isClose: false,

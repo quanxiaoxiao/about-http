@@ -1,6 +1,10 @@
 /* eslint no-use-before-define: 0 */
 
 module.exports = (req, limit) => new Promise((resolve, reject) => {
+  if (!req.readable) {
+    reject();
+    return;
+  }
   const state = {
     isCleanup: false,
     isDone: false,
