@@ -5,6 +5,9 @@ const hrefParser = require('./hrefParser');
 
 module.exports = (options) => new Promise((resolve, reject) => {
   const hrefOptions = hrefParser(options.url);
+  const state = {
+    completed: false,
+  };
   if (!hrefOptions) {
     reject(createError(500, 'url invalid'));
   } else {
@@ -18,12 +21,18 @@ module.exports = (options) => new Promise((resolve, reject) => {
         if (options.logger && options.logger.error) {
           options.logger.error(err);
         }
-        reject(createError(err.statusCode || err.status || 502));
+        if (!state.completed) {
+          state.completed = true;
+          reject(createError(err.statusCode || err.status || 502));
+        }
       },
       onResponse: (res) => {
         if (options.match && !options.match(res.statusCode, res.headers)) {
           connect();
-          reject();
+          if (!state.completed) {
+            state.completed = true;
+            reject(createError(400));
+          }
         }
       },
       onData: (chunk) => {
@@ -31,10 +40,16 @@ module.exports = (options) => new Promise((resolve, reject) => {
         size += chunk.length;
       },
       onEnd: () => {
-        resolve(Buffer.concat(bufList, size));
+        if (!state.completed) {
+          state.completed = true;
+          resolve(Buffer.concat(bufList, size));
+        }
       },
       onClose: () => {
-        reject(createError(500));
+        if (!state.completed) {
+          state.completed = true;
+          reject(createError(500));
+        }
       },
     });
   }
