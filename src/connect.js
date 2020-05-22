@@ -76,7 +76,7 @@ module.exports = (
       cleanup();
     }
 
-    function handleResSocketClose() {
+    function handleResClose() {
       state.isConnect = false;
       if (!state.isClose && !state.isErrorEmit && !state.isCloseEmit) {
         state.isCloseEmit = true;
@@ -101,21 +101,15 @@ module.exports = (
       httpRequest.off('error', handleReqError);
       httpResponse.on('data', handleResData);
       httpResponse.once('end', handleResEnd);
-      httpResponse.once('close', handleResEnd);
-      if (httpResponse.socket) {
-        httpResponse.socket.once('close', handleResSocketClose);
-      }
+      httpResponse.once('close', handleResClose);
     }
 
     function cleanup() {
       if (!state.isCleanup) {
         state.isCleanup = true;
         httpResponse.off('data', handleResData);
+        httpResponse.off('close', handleResClose);
         httpResponse.off('end', handleResEnd);
-        httpResponse.off('close', handleResEnd);
-        if (httpResponse.socket) {
-          httpResponse.socket.off('close', handleResSocketClose);
-        }
       }
     }
   }

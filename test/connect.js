@@ -169,10 +169,10 @@ test.cb('connect2', (t) => {
       t.pass();
     },
     onEnd: () => {
-      t.fail();
+      t.pass();
     },
     onClose: () => {
-      t.pass();
+      t.fail();
     },
   });
   setTimeout(() => {
@@ -281,10 +281,10 @@ test.cb('connect6', (t) => {
       t.pass();
     },
     onEnd: () => {
-      t.fail();
+      t.pass();
     },
     onClose: () => {
-      t.pass();
+      t.fail();
     },
   });
   setTimeout(() => {
@@ -309,10 +309,10 @@ test.cb('connect7', (t) => {
       t.fail();
     },
     onEnd: () => {
-      t.fail();
+      t.pass();
     },
     onClose: () => {
-      t.pass();
+      t.fail();
     },
   });
   setTimeout(() => {
