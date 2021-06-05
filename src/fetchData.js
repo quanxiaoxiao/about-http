@@ -16,22 +16,30 @@ module.exports = (options) => new Promise((resolve, reject) => {
     const connect = httpConnect(_.omit({
       ...hrefOptions,
       ...options,
-    }, ['match', 'url', 'logger']), {
+    }, ['match', 'url']), {
       onError: (err) => {
-        if (options.logger && options.logger.error) {
-          options.logger.error(err);
-        }
         if (!state.completed) {
           state.completed = true;
           reject(createError(err.statusCode || err.status || 502));
         }
       },
       onResponse: (res) => {
-        if (options.match && !options.match(res.statusCode, res.headers)) {
-          connect();
-          if (!state.completed) {
-            state.completed = true;
-            reject(createError(400));
+        if (options.match) {
+          try {
+            const ret = options.match(res.statusCode, res.headers);
+            if (!ret) {
+              connect();
+              if (!state.completed) {
+                state.completed = true;
+                reject(createError(400));
+              }
+            }
+          } catch (error) {
+            connect();
+            if (!state.completed) {
+              state.completed = true;
+              reject(createError(500, error.message));
+            }
           }
         }
       },
@@ -48,7 +56,7 @@ module.exports = (options) => new Promise((resolve, reject) => {
       onClose: () => {
         if (!state.completed) {
           state.completed = true;
-          reject(createError(500));
+          reject(createError(500, 'socket close'));
         }
       },
     });

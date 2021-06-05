@@ -25,6 +25,7 @@ module.exports = (
     isCloseEmit: false,
     isEndEmit: false,
     isCleanup: false,
+    aborted: false,
   };
 
   const httpRequest = schema.request(other);
@@ -135,7 +136,8 @@ module.exports = (
 
   const connect = () => {
     state.isClose = true;
-    if (!httpResponse) {
+    if (!httpResponse && !state.aborted) {
+      state.aborted = true;
       httpRequest.off('response', handleResponse);
       httpRequest.abort();
     } else if (!httpResponse.destroyed) {
