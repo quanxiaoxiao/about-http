@@ -48,7 +48,14 @@ module.exports = (
 
   function onResponse(res) {
     if (!state.isClose) {
-      httpResponse.writeHead(res.statusCode, res.headers);
+      try {
+        httpResponse.writeHead(res.statusCode, res.headers);
+      } catch (error) {
+        if (options.logger && options.logger.error) {
+          options.logger.error(error);
+        }
+        connect();
+      }
     } else {
       connect();
     }

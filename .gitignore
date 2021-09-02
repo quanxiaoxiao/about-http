@@ -1,6 +1,7 @@
 node_modules
 logs
 *.log
+.DS_Store
 
 # Swap
 [._]*.s[a-v][a-z]
