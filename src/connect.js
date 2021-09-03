@@ -36,7 +36,6 @@ module.exports = (
     }
   };
 
-
   const handleReqSocket = (socket) => {
     if (!state.isClose) {
       socket.once('connect', handleSocketConnect);
@@ -59,7 +58,6 @@ module.exports = (
     }
     state.isClose = true;
   }
-
 
   function handleResponse(r) {
     httpResponse = r;
