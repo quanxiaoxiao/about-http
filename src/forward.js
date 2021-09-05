@@ -13,7 +13,9 @@ module.exports = (
   const state = {
     isCleanup: false,
     isClose: false,
+    willClose: false,
   };
+
   const hrefOptions = hrefParser(options.url);
   if (!hrefOptions) {
     if (options.logger && options.logger.error) {
@@ -30,7 +32,7 @@ module.exports = (
     onData,
     onResponse,
     onError,
-    onEnd,
+    onEnd: onClose,
     onClose,
   });
 
@@ -38,10 +40,11 @@ module.exports = (
     if (options.logger && options.logger.error) {
       options.logger.error(error);
     }
-    if (!httpResponse.headersSent && !state.isClose) {
+    if (!httpResponse.headersSent && !state.isClose && !state.willClose) {
       httpResponse.writeHead(error.statusCode || error.status || 502, {});
     }
-    if (error && !state.isClose) {
+    if (error && !state.isClose && !state.willClose) {
+      state.willClose = true;
       httpResponse.end(error.message);
     }
   }
@@ -49,7 +52,9 @@ module.exports = (
   function onResponse(res) {
     if (!state.isClose) {
       try {
-        httpResponse.writeHead(res.statusCode, res.headers);
+        if (!httpResponse.headersSent && !state.willClose) {
+          httpResponse.writeHead(res.statusCode, res.headers);
+        }
       } catch (error) {
         if (options.logger && options.logger.error) {
           options.logger.error(error);
@@ -62,22 +67,19 @@ module.exports = (
   }
 
   function onClose() {
-    if (!state.isClose) {
-      httpResponse.end();
-    }
-  }
-
-  function onEnd() {
-    if (!state.isClose) {
+    if (!state.isClose && !state.willClose) {
+      state.willClose = true;
       httpResponse.end();
     }
   }
 
   function onData(chunk) {
     if (!state.isClose) {
-      const ret = httpResponse.write(chunk);
-      if (!ret) {
-        connect.pause();
+      if (!state.willClose) {
+        const ret = httpResponse.write(chunk);
+        if (!ret) {
+          connect.pause();
+        }
       }
     } else {
       connect();
@@ -98,6 +100,7 @@ module.exports = (
     if (!state.isCleanup) {
       state.isCleanup = true;
       httpResponse.off('drain', handleDrain);
+      httpResponse.off('finish', handleClose);
       httpResponse.off('close', handleClose);
       if (httpResponse.socket) {
         httpResponse.socket.off('close', handleClose);
@@ -105,7 +108,10 @@ module.exports = (
     }
   }
 
-  function handleError() {
+  function handleError(error) {
+    if (options.logger && options.logger.error) {
+      options.logger.error(error.message);
+    }
     state.isClose = true;
     connect();
     cleanup();
@@ -113,6 +119,7 @@ module.exports = (
 
   httpResponse.once('error', handleError);
   httpResponse.on('drain', handleDrain);
+  httpResponse.once('finish', handleClose);
   httpResponse.once('close', handleClose);
   httpResponse.socket.once('close', handleClose);
 };
