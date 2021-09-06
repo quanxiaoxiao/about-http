@@ -93,6 +93,13 @@ module.exports = (
     cleanup();
   }
 
+  function handleSocketClose() {
+    if (!httpResponse.writableEnded) {
+      httpResponse.end();
+    }
+    connect();
+  }
+
   function cleanup() {
     if (!state.isCleanup) {
       state.isCleanup = true;
@@ -100,7 +107,7 @@ module.exports = (
       httpResponse.off('finish', handleClose);
       httpResponse.off('close', handleClose);
       if (httpResponse.socket) {
-        httpResponse.socket.off('close', handleClose);
+        httpResponse.socket.off('close', handleSocketClose);
       }
     }
   }
@@ -118,5 +125,5 @@ module.exports = (
   httpResponse.on('drain', handleDrain);
   httpResponse.once('finish', handleClose);
   httpResponse.once('close', handleClose);
-  httpResponse.socket.once('close', handleClose);
+  httpResponse.socket.once('close', handleSocketClose);
 };
