@@ -138,7 +138,7 @@ module.exports = (
       state.aborted = true;
       httpRequest.off('response', handleResponse);
       httpRequest.abort();
-    } else if (!httpResponse.destroyed) {
+    } else if (httpResponse && !httpResponse.destroyed) {
       httpResponse.destroy();
     }
     state.isConnect = false;
