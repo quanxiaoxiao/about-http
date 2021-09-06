@@ -13,7 +13,6 @@ module.exports = (
   const state = {
     isCleanup: false,
     isClose: false,
-    willClose: false,
   };
 
   const hrefOptions = hrefParser(options.url);
@@ -40,11 +39,10 @@ module.exports = (
     if (options.logger && options.logger.error) {
       options.logger.error(error);
     }
-    if (!httpResponse.headersSent && !state.isClose && !state.willClose) {
+    if (!httpResponse.headersSent && !state.isClose && !httpResponse.writableEnded) {
       httpResponse.writeHead(error.statusCode || error.status || 502, {});
     }
-    if (error && !state.isClose && !state.willClose) {
-      state.willClose = true;
+    if (error && !state.isClose && !httpResponse.writableEnded) {
       httpResponse.end(error.message);
     }
   }
@@ -52,7 +50,7 @@ module.exports = (
   function onResponse(res) {
     if (!state.isClose) {
       try {
-        if (!httpResponse.headersSent && !state.willClose) {
+        if (!httpResponse.headersSent && !httpResponse.writableEnded) {
           httpResponse.writeHead(res.statusCode, res.headers);
         }
       } catch (error) {
@@ -67,15 +65,14 @@ module.exports = (
   }
 
   function onClose() {
-    if (!state.isClose && !state.willClose) {
-      state.willClose = true;
+    if (!state.isClose && !httpResponse.writableEnded) {
       httpResponse.end();
     }
   }
 
   function onData(chunk) {
     if (!state.isClose) {
-      if (!state.willClose) {
+      if (!httpResponse.writableEnded) {
         const ret = httpResponse.write(chunk);
         if (!ret) {
           connect.pause();
