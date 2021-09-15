@@ -23,7 +23,7 @@ module.exports = ({
 }, req, socket) => {
   if (!/^wss?:\/\/.+/.test(href)) {
     if (logger && logger.error) {
-      logger.error('web socket url invalid');
+      logger.error(`web socket url: ${href}, invalid`);
     }
     socket.destroy();
     return;
@@ -53,41 +53,65 @@ module.exports = ({
     if (logger && logger.error) {
       logger.error(error);
     }
-    proxyReq.off('response', handleProxyReqResponse);
-    proxyReq.off('upgrade', handleProxyReqUpgrade);
-    proxyReq.abort();
-    socket.destroy();
-  }
-
-  function handleProxyReqResponse(proxyRes) {
-    proxyReq.on('error', () => {});
-    proxyRes.on('error', () => {});
-    proxyReq.off('error', handleProxyReqError);
-    if (!proxyRes.upgrade) {
-      socket.on('error', () => {});
-      socket.write(createHttpHeader(`HTTP/${proxyRes.httpVersion} ${proxyRes.statusCode} ${proxyRes.statusMessage}`, proxyRes.headers));
-      proxyRes.pipe(socket);
+    if (!socket.destroyed) {
+      socket.destroy();
     }
   }
 
+  function handleSocketError(error) {
+    if (logger && logger.error) {
+      logger.error(error);
+    }
+    proxyReq.off('upgrade', handleProxyReqUpgrade);
+    proxyReq.abort();
+  }
+
   function handleProxyReqUpgrade(proxyRes, proxySocket) {
-    proxyRes.on('error', () => {});
-    proxyReq.on('error', () => {});
-    proxyRes.off('response', handleProxyReqResponse);
-    proxyReq.off('error', handleProxyReqError);
-    socket.on('error', () => {
-      proxySocket.end();
-    });
-    proxySocket.on('error', () => {
-      socket.end();
-    });
-    socket.write(createHttpHeader('HTTP/1.1 101 Switching Protocols', proxyRes.headers));
-    proxySocket.pipe(socket).pipe(proxySocket);
+    if (!socket.destroyed) {
+      proxyRes.on('error', () => {
+        if (!socket.destroyed) {
+          socket.destroy();
+        }
+      });
+      proxyReq.on('error', () => {
+        if (!socket.destroyed) {
+          socket.destroy();
+        }
+      });
+      proxyReq.off('error', handleProxyReqError);
+      socket.off('error', handleSocketError);
+      socket.on('error', (error) => {
+        if (logger && logger.error) {
+          logger.error(error);
+        }
+        if (!proxySocket.destroyed) {
+          proxySocket.destroy();
+        }
+      });
+      proxySocket.on('error', (error) => {
+        if (logger && logger.error) {
+          logger.error(error);
+        }
+        if (socket.destroyed) {
+          socket.destroy();
+        }
+      });
+      socket.write(createHttpHeader('HTTP/1.1 101 Switching Protocols', proxyRes.headers));
+      if (!socket.destroyed) {
+        proxySocket.pipe(socket);
+        socket.pipe(proxySocket);
+      } else {
+        proxySocket.destroy();
+      }
+    } else {
+      proxySocket.destroy();
+    }
   }
 
   proxyReq.once('error', handleProxyReqError);
-  proxyReq.once('response', handleProxyReqResponse);
   proxyReq.once('upgrade', handleProxyReqUpgrade);
+
+  socket.once('error', handleSocketError);
 
   proxyReq.end();
 };
