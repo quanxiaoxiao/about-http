@@ -63,10 +63,12 @@ module.exports = ({
       logger.error(error);
     }
     proxyReq.off('upgrade', handleProxyReqUpgrade);
+    proxyReq.off('response', handleProxyReqResponse);
     proxyReq.abort();
   }
 
   function handleProxyReqUpgrade(proxyRes, proxySocket) {
+    proxyReq.off('response', handleProxyReqResponse);
     if (!socket.destroyed) {
       proxyRes.on('error', () => {
         if (!socket.destroyed) {
@@ -108,8 +110,20 @@ module.exports = ({
     }
   }
 
+  function handleProxyReqResponse(proxyRes) {
+    socket.off('error', handleSocketError);
+    if (socket.destroyed) {
+      proxyRes.destroy();
+    } else if (!proxyRes.upgrade) {
+      socket.once('error', () => {});
+      socket.write(createHttpHeader(`HTTP/${proxyRes.httpVersion} ${proxyRes.statusCode} ${proxyRes.statusMessage}`, proxyRes.headers));
+      proxyRes.pipe(socket);
+    }
+  }
+
   proxyReq.once('error', handleProxyReqError);
   proxyReq.once('upgrade', handleProxyReqUpgrade);
+  proxyReq.once('response', handleProxyReqResponse);
 
   socket.once('error', handleSocketError);
 
