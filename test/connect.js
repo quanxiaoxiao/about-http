@@ -434,3 +434,21 @@ test('invalid body', (t) => {
     });
   });
 });
+
+test('some handler is not bind', (t) => {
+  t.throws(() => {
+    connect({
+      hostname: 'localhost',
+      port: 3334,
+      path: '/abort3',
+      body: null,
+    }, {
+      onError: () => {
+      },
+      onEnd: () => {
+      },
+      onClose: () => {
+      },
+    });
+  });
+});

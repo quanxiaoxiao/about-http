@@ -11,6 +11,28 @@ module.exports = (
     onClose,
   },
 ) => {
+  [
+    {
+      name: 'onError',
+      fn: onError,
+    },
+    {
+      name: 'onData',
+      fn: onData,
+    },
+    {
+      name: 'onEnd',
+      fn: onEnd,
+    },
+    {
+      name: 'onClose',
+      fn: onClose,
+    },
+  ].forEach(({ name, fn }) => {
+    if (typeof fn !== 'function') {
+      throw new Error(`handle \`${name}\` is not bind`);
+    }
+  });
   let httpResponse;
   const {
     schema = http,
@@ -121,7 +143,9 @@ module.exports = (
     }
 
     if (state.isConnect && !state.isClose) {
-      onResponse(httpResponse);
+      if (onResponse) {
+        onResponse(httpResponse);
+      }
       httpRequest.once('error', handleErrorOnSource);
       httpRequest.off('error', handleReqError);
       httpResponse.once('error', handleErrorOnDest);
