@@ -22,10 +22,16 @@ module.exports = ({
   ...other
 }, req, socket) => {
   if (!/^wss?:\/\/.+/.test(href)) {
-    if (logger && logger.error) {
-      logger.error(`web socket url: ${href}, invalid`);
+    if (logger && logger.warn) {
+      logger.warn(`web socket url: \`${href}\` invalid`);
     }
     socket.destroy();
+    return;
+  }
+  if (!socket.writable) {
+    if (logger && logger.warn) {
+      logger.warn('socket alread close');
+    }
     return;
   }
   const parser = url.parse(href);
@@ -50,8 +56,8 @@ module.exports = ({
   });
 
   function handleProxyReqError(error) {
-    if (logger && logger.error) {
-      logger.error(error);
+    if (logger && logger.warn) {
+      logger.warn(error.message);
     }
     if (!socket.destroyed) {
       socket.destroy();
@@ -59,65 +65,96 @@ module.exports = ({
   }
 
   function handleSocketError(error) {
-    if (logger && logger.error) {
-      logger.error(error);
+    if (logger && logger.warn) {
+      logger.warn(error.message);
     }
-    proxyReq.off('upgrade', handleProxyReqUpgrade);
-    proxyReq.off('response', handleProxyReqResponse);
-    proxyReq.abort();
+    if (!proxyReq.destroyed) {
+      proxyReq.destroy();
+    }
   }
 
   function handleProxyReqUpgrade(proxyRes, proxySocket) {
     proxyReq.off('response', handleProxyReqResponse);
-    if (!socket.destroyed) {
-      proxyRes.on('error', () => {
+    if (socket.writable && proxySocket.writable) {
+      proxyRes.on('error', (error) => {
+        if (logger && logger.warn) {
+          logger.warn(error.message);
+        }
         if (!socket.destroyed) {
           socket.destroy();
         }
+        if (!proxyReq.destroyed) {
+          proxyReq.destroy();
+        }
       });
-      proxyReq.on('error', () => {
+      proxyReq.on('error', (error) => {
+        if (logger && logger.warn) {
+          logger.warn(error.message);
+        }
         if (!socket.destroyed) {
           socket.destroy();
+        }
+        if (!proxyRes.destroyed) {
+          proxyRes.destroy();
         }
       });
       proxyReq.off('error', handleProxyReqError);
       socket.off('error', handleSocketError);
       socket.on('error', (error) => {
-        if (logger && logger.error) {
-          logger.error(error);
+        if (logger && logger.warn) {
+          logger.warn(error.message);
         }
         if (!proxySocket.destroyed) {
           proxySocket.destroy();
         }
       });
       proxySocket.on('error', (error) => {
-        if (logger && logger.error) {
-          logger.error(error);
+        if (logger && logger.warn) {
+          logger.warn(error.message);
         }
-        if (socket.destroyed) {
+        if (!socket.destroyed) {
           socket.destroy();
         }
       });
       socket.write(createHttpHeader('HTTP/1.1 101 Switching Protocols', proxyRes.headers));
-      if (!socket.destroyed) {
-        proxySocket.pipe(socket);
-        socket.pipe(proxySocket);
-      } else {
+      proxySocket.pipe(socket);
+      socket.pipe(proxySocket);
+    } else {
+      if (logger && logger.warn) {
+        logger.warn('socket alreay close');
+      }
+      if (!proxySocket.destroyed) {
         proxySocket.destroy();
       }
-    } else {
-      proxySocket.destroy();
+      if (!socket.destroyed) {
+        socket.destroy();
+      }
     }
   }
 
   function handleProxyReqResponse(proxyRes) {
     socket.off('error', handleSocketError);
-    if (socket.destroyed) {
+    if (!socket.writable) {
+      if (logger && logger.warn) {
+        logger.warn('source socket alreay close');
+      }
       proxyRes.destroy();
     } else if (!proxyRes.upgrade) {
-      socket.once('error', () => {});
+      socket.once('error', (error) => {
+        if (logger && logger.warn) {
+          logger.warn(error.message);
+        }
+        if (!proxyRes.destroyed) {
+          proxyRes.destroy();
+        }
+      });
       socket.write(createHttpHeader(`HTTP/${proxyRes.httpVersion} ${proxyRes.statusCode} ${proxyRes.statusMessage}`, proxyRes.headers));
       proxyRes.pipe(socket);
+    } else {
+      socket.destroy();
+      if (!proxyReq.destroyed) {
+        proxyReq.destroy();
+      }
     }
   }
 
