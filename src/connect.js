@@ -25,7 +25,6 @@ module.exports = (
     isCloseEmit: false,
     isEndEmit: false,
     isCleanup: false,
-    aborted: false,
   };
 
   const httpRequest = schema.request(other);
@@ -57,10 +56,14 @@ module.exports = (
       onError(error);
     }
     state.isClose = true;
+    if (httpResponse && !httpResponse.destroyed) {
+      httpResponse.destroy();
+    }
   }
 
   function handleResponse(r) {
     httpResponse = r;
+
     function handleResEnd() {
       if (!state.isClose
         && !state.isEndEmit
@@ -77,16 +80,39 @@ module.exports = (
 
     function handleResClose() {
       state.isConnect = false;
-      if (!state.isClose && !state.isErrorEmit && !state.isCloseEmit) {
+      if (!state.isClose
+        && !state.isErrorEmit
+        && !state.isEndEmit
+        && !state.isCloseEmit
+      ) {
         state.isCloseEmit = true;
         onClose();
       }
       state.isClose = true;
       cleanup();
     }
-    function handleError(error) {
+
+    function handleErrorOnSource(error) {
       state.isConnect = false;
-      if (!state.isErrorEmit && !state.isClose) {
+      if (!state.isErrorEmit
+        && !state.isClose
+        && !state.isEndEmit
+        && !state.isCloseEmit
+      ) {
+        state.isErrorEmit = true;
+        onError(error);
+      }
+      state.isClose = true;
+      cleanup();
+    }
+
+    function handleErrorOnDest(error) {
+      state.isConnect = false;
+      if (!state.isErrorEmit
+        && !state.isClose
+        && !state.isEndEmit
+        && !state.isCloseEmit
+      ) {
         state.isErrorEmit = true;
         onError(error);
       }
@@ -96,8 +122,9 @@ module.exports = (
 
     if (state.isConnect && !state.isClose) {
       onResponse(httpResponse);
-      httpRequest.once('error', handleError);
+      httpRequest.once('error', handleErrorOnSource);
       httpRequest.off('error', handleReqError);
+      httpResponse.once('error', handleErrorOnDest);
       httpResponse.on('data', handleResData);
       httpResponse.once('end', handleResEnd);
       httpResponse.once('close', handleResClose);
@@ -116,6 +143,8 @@ module.exports = (
   function handleResData(chunk) {
     if (!state.isClose) {
       onData(chunk);
+    } else if (!httpResponse.destroyed) {
+      httpResponse.destroy();
     }
   }
 
@@ -129,29 +158,36 @@ module.exports = (
   } else if (typeof body === 'string' || Buffer.isBuffer(body)) {
     httpRequest.end(body);
   } else {
-    httpRequest.end();
+    httpRequest.destroy();
+    throw new Error('body is not string or buffer');
   }
 
   const connect = () => {
     state.isClose = true;
-    if (!httpResponse && !state.aborted) {
-      state.aborted = true;
-      httpRequest.off('response', handleResponse);
-      httpRequest.abort();
-    } else if (httpResponse && !httpResponse.destroyed) {
+    state.isConnect = false;
+    if (!httpRequest.destroyed) {
+      httpRequest.destroy();
+    }
+    if (httpResponse && !httpResponse.destroyed) {
       httpResponse.destroy();
     }
-    state.isConnect = false;
   };
 
   connect.resume = () => {
-    if (state.isConnect && !state.isClose && httpResponse) {
+    if (state.isConnect
+      && !state.isClose
+      && httpResponse
+      && httpResponse.isPaused()) {
       httpResponse.resume();
     }
   };
 
   connect.pause = () => {
-    if (state.isConnect && !state.isClose && httpResponse) {
+    if (state.isConnect
+      && !state.isClose
+      && httpResponse
+      && !httpResponse.isPaused()
+    ) {
       httpResponse.pause();
     }
   };

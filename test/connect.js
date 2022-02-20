@@ -412,3 +412,25 @@ test.cb('connect abort3', (t) => {
     t.end();
   }, 2000);
 });
+
+test('invalid body', (t) => {
+  t.throws(() => {
+    connect({
+      hostname: 'localhost',
+      port: 3334,
+      path: '/abort3',
+      body: 22,
+    }, {
+      onError: () => {
+      },
+      onResponse: () => {
+      },
+      onData: () => {
+      },
+      onEnd: () => {
+      },
+      onClose: () => {
+      },
+    });
+  });
+});
