@@ -1,7 +1,7 @@
 /* eslint no-use-before-define: 0 */
-const http = require('http');
+import http from 'http';
 
-module.exports = (
+export default (
   options,
   {
     onError,

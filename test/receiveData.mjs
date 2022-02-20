@@ -1,7 +1,7 @@
-const test = require('ava');
-const http = require('http');
-const net = require('net');
-const receiveData = require('../src/receiveData');
+import http from 'http';
+import net from 'net';
+import test from 'ava'; // eslint-disable-line import/no-unresolved
+import receiveData from '../src/receiveData.mjs';
 
 test.cb('receive success', (t) => {
   const port = 6001;

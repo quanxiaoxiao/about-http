@@ -1,11 +1,11 @@
-const connect = require('./connect');
-const forward = require('./forward');
-const fetchData = require('./fetchData');
-const receiveData = require('./receiveData');
-const receiveJSON = require('./receiveJSON');
-const connectWebSocket = require('./connectWebSocket');
+import connect from './connect.mjs';
+import forward from './forward.mjs';
+import fetchData from './fetchData.mjs';
+import receiveData from './receiveData.mjs';
+import receiveJSON from './receiveJSON.mjs';
+import connectWebSocket from './connectWebSocket.mjs';
 
-module.exports = {
+export default {
   httpConnect: connect,
   httpForward: forward,
   fetchData,

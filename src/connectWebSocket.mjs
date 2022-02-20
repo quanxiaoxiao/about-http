@@ -1,8 +1,8 @@
 /* eslint no-use-before-define: 0 */
-const http = require('http');
-const https = require('https');
-const url = require('url');
-const _ = require('lodash');
+import http from 'http';
+import https from 'https';
+import url from 'url';
+import { omit } from 'lodash';
 
 const createHttpHeader = (line, headers) => `${Object.keys(headers).reduce((head, key) => {
   const value = headers[key];
@@ -16,7 +16,7 @@ const createHttpHeader = (line, headers) => `${Object.keys(headers).reduce((head
   return head;
 }, [line]).join('\r\n')}\r\n\r\n`;
 
-module.exports = ({
+export default ({
   url: href,
   logger,
   ...other
@@ -51,7 +51,7 @@ module.exports = ({
   const proxyReq = schema.request({
     ...options,
     method: 'GET',
-    headers: _.omit(req.headers, ['host', 'referer']),
+    headers: omit(req.headers, ['host', 'referer']),
     ...other,
   });
 

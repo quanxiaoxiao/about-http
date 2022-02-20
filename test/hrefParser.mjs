@@ -1,7 +1,7 @@
-const test = require('ava');
-const https = require('https');
-const http = require('http');
-const parser = require('../src/hrefParser');
+import https from 'https';
+import http from 'http';
+import test from 'ava'; // eslint-disable-line import/no-unresolved
+import parser from '../src/hrefParser.mjs';
 
 test('href parser', (t) => {
   t.is(parser('http://www.baidu.com:65535').port, 65535);

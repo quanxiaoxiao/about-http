@@ -1,8 +1,8 @@
-const http = require('http');
-const https = require('https');
-const url = require('url');
+import http from 'http';
+import https from 'https';
+import { parse } from 'url';
 
-module.exports = (href) => {
+export default (href) => {
   if (!/^https?:\/\/\w+/.test(href)) {
     throw new Error(`href \`${href}\` invalid`);
   }
@@ -11,7 +11,7 @@ module.exports = (href) => {
     path,
     port,
     hostname,
-  } = url.parse(href);
+  } = parse(href);
   let p = port;
   if (p == null) {
     p = protocol === 'https:' ? 443 : 80;

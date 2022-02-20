@@ -1,11 +1,16 @@
 {
   "name": "@quanxiaoxiao/about-http",
-  "version": "0.0.29",
+  "version": "0.1.0",
   "description": "",
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "main": "src/index.js",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/index.mjs"
+    }
+  },
   "scripts": {
     "test": "ava"
   },
@@ -13,17 +18,19 @@
     "registry": "https://registry.npmjs.org"
   },
   "dependencies": {
-    "http-errors": "^1.8.0",
+    "http-errors": "^2.0.0",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
     "ava": "^3.15.0",
-    "babel-eslint": "^10.1.0",
-    "eslint": "^7.32.0",
-    "eslint-config-airbnb": "^18.2.1",
-    "eslint-plugin-import": "^2.24.2",
-    "eslint-plugin-jsx-a11y": "^6.4.1",
-    "eslint-plugin-react": "^7.25.1",
-    "eslint-plugin-react-hooks": "^4.2.0"
+    "eslint": "^8.9.0",
+    "eslint-config-airbnb": "^19.0.4",
+    "eslint-plugin-import": "^2.25.4",
+    "eslint-plugin-jsx-a11y": "^6.5.1",
+    "eslint-plugin-react": "^7.28.0",
+    "eslint-plugin-react-hooks": "^4.3.0"
+  },
+  "engines": {
+    "node": ">= 12"
   }
 }

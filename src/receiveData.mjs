@@ -1,6 +1,6 @@
 /* eslint no-use-before-define: 0 */
 
-module.exports = (rs, limit) => new Promise((resolve, reject) => {
+export default (rs, limit) => new Promise((resolve, reject) => {
   if (!rs.readable) {
     reject(new Error('read stream already close'));
     return;

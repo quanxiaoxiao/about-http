@@ -1,16 +1,16 @@
-const createError = require('http-errors');
-const _ = require('lodash');
-const httpConnect = require('./connect');
-const hrefParser = require('./hrefParser');
+import createError from 'http-errors';
+import { omit } from 'lodash';
+import httpConnect from './connect.mjs';
+import hrefParser from './hrefParser.mjs';
 
-module.exports = (options) => new Promise((resolve, reject) => {
+export default (options) => new Promise((resolve, reject) => {
   const state = {
     completed: false,
   };
   const hrefOptions = hrefParser(options.url);
   const bufList = [];
   let size = 0;
-  const connect = httpConnect(_.omit({
+  const connect = httpConnect(omit({
     ...hrefOptions,
     ...options,
   }, ['match', 'url']), {

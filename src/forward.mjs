@@ -1,12 +1,9 @@
 /* eslint no-use-before-define: 0 */
-const _ = require('lodash');
-const httpConnect = require('./connect');
-const hrefParser = require('./hrefParser');
+import { omit } from 'lodash';
+import httpConnect from './connect.mjs';
+import hrefParser from './hrefParser.mjs';
 
-module.exports = (
-  options,
-  httpResponse,
-) => {
+export default (options, httpResponse) => {
   if (!httpResponse.writable || !httpResponse.socket) {
     if (options.logger && options.logger.warn) {
       options.logger.warn('write steam alread close');
@@ -22,7 +19,7 @@ module.exports = (
 
   const connect = httpConnect({
     ...hrefOptions,
-    ..._.omit(options, ['url', 'logger']),
+    ...omit(options, ['url', 'logger']),
   }, {
     onData,
     onResponse,

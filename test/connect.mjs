@@ -1,6 +1,6 @@
-const net = require('net');
-const test = require('ava');
-const connect = require('../src/connect');
+import net from 'net';
+import test from 'ava'; // eslint-disable-line import/no-unresolved
+import connect from '../src/connect.mjs';
 
 test.before((t) => {
   const server = net.createServer((socket) => {
