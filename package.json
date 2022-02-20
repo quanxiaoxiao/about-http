@@ -12,6 +12,7 @@
     }
   },
   "scripts": {
+    "lint": "eslint src/* --ignore-path .gitignore",
     "test": "ava"
   },
   "publishConfig": {
