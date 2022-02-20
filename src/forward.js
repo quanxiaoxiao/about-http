@@ -7,7 +7,10 @@ module.exports = (
   options,
   httpResponse,
 ) => {
-  if (!httpResponse.writable) {
+  if (!httpResponse.writable || !httpResponse.socket) {
+    if (options.logger && options.logger.warn) {
+      options.logger.warn('write steam alread close');
+    }
     return;
   }
   const state = {
@@ -16,14 +19,7 @@ module.exports = (
   };
 
   const hrefOptions = hrefParser(options.url);
-  if (!hrefOptions) {
-    if (options.logger && options.logger.error) {
-      options.logger.error('forward url invalid');
-    }
-    httpResponse.writeHead(500, {});
-    httpResponse.end();
-    return;
-  }
+
   const connect = httpConnect({
     ...hrefOptions,
     ..._.omit(options, ['url', 'logger']),
@@ -36,13 +32,13 @@ module.exports = (
   });
 
   function onError(error) {
-    if (options.logger && options.logger.error) {
-      options.logger.error(error);
+    if (options.logger && options.logger.warn) {
+      options.logger.warn(error.message);
     }
     if (!httpResponse.headersSent && !state.isClose && !httpResponse.writableEnded) {
       httpResponse.writeHead(error.statusCode || error.status || 502, {});
     }
-    if (error && !state.isClose && !httpResponse.writableEnded) {
+    if (!state.isClose && !httpResponse.writableEnded) {
       httpResponse.end(error.message);
     }
   }
@@ -52,14 +48,20 @@ module.exports = (
       try {
         if (!httpResponse.headersSent && !httpResponse.writableEnded) {
           httpResponse.writeHead(res.statusCode, res.headers);
+        } else {
+          connect();
         }
       } catch (error) {
-        if (options.logger && options.logger.error) {
-          options.logger.error(error);
+        if (options.logger && options.logger.warn) {
+          options.logger.warn(error.message);
         }
+        state.isClose = true;
         connect();
       }
     } else {
+      if (options.logger && options.logger.warn) {
+        options.logger.warn('source socket write EPIPE');
+      }
       connect();
     }
   }
@@ -71,14 +73,15 @@ module.exports = (
   }
 
   function onData(chunk) {
-    if (!state.isClose) {
-      if (!httpResponse.writableEnded) {
-        const ret = httpResponse.write(chunk);
-        if (!ret) {
-          connect.pause();
-        }
+    if (!state.isClose && !httpResponse.writableEnded) {
+      const ret = httpResponse.write(chunk);
+      if (!ret) {
+        connect.pause();
       }
     } else {
+      if (options.logger && options.logger.warn) {
+        options.logger.warn('source socket write EPIPE');
+      }
       connect();
     }
   }
@@ -89,15 +92,16 @@ module.exports = (
 
   function handleClose() {
     state.isClose = true;
+    if (options.logger && options.logger.warn) {
+      options.logger.warn('source socket close error');
+    }
     connect();
     cleanup();
   }
 
-  function handleSocketClose() {
-    if (!httpResponse.writableEnded) {
-      httpResponse.end();
-    }
-    connect();
+  function handleEnd() {
+    state.isClose = true;
+    cleanup();
   }
 
   function cleanup() {
@@ -106,15 +110,12 @@ module.exports = (
       httpResponse.off('drain', handleDrain);
       httpResponse.off('finish', handleClose);
       httpResponse.off('close', handleClose);
-      if (httpResponse.socket) {
-        httpResponse.socket.off('close', handleSocketClose);
-      }
     }
   }
 
   function handleError(error) {
-    if (options.logger && options.logger.error) {
-      options.logger.error(error.message);
+    if (options.logger && options.logger.warn) {
+      options.logger.warn(error.message);
     }
     state.isClose = true;
     connect();
@@ -123,7 +124,6 @@ module.exports = (
 
   httpResponse.once('error', handleError);
   httpResponse.on('drain', handleDrain);
-  httpResponse.once('finish', handleClose);
+  httpResponse.once('finish', handleEnd);
   httpResponse.once('close', handleClose);
-  httpResponse.socket.once('close', handleSocketClose);
 };
