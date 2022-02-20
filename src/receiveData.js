@@ -2,7 +2,7 @@
 
 module.exports = (req, limit) => new Promise((resolve, reject) => {
   if (!req.readable) {
-    reject();
+    reject(new Error('source had close'));
     return;
   }
   const state = {
