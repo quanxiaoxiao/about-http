@@ -4,16 +4,28 @@ const url = require('url');
 
 module.exports = (href) => {
   if (!/^https?:\/\/\w+/.test(href)) {
-    return null;
+    throw new Error(`href \`${href}\` invalid`);
   }
-  const parser = url.parse(href);
+  const {
+    protocol,
+    path,
+    port,
+    hostname,
+  } = url.parse(href);
+  let p = port;
+  if (p == null) {
+    p = protocol === 'https:' ? 443 : 80;
+  } else {
+    p = Number(port);
+  }
+  if (p <= 0 || p > 65535 || Number.isNaN(p)) {
+    throw new Error(`port \`${p}\` invalid`);
+  }
   const result = {
-    schema: parser.protocol === 'https:' ? https : http,
-    port: parser.port // eslint-disable-line
-      ? parseInt(parser.port, 10)
-      : (parser.protocol === 'https:' ? 443 : 80),
-    path: parser.path,
-    hostname: parser.hostname,
+    schema: protocol === 'https:' ? https : http,
+    port: p,
+    path,
+    hostname,
   };
   return result;
 };

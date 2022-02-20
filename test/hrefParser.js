@@ -4,8 +4,19 @@ const http = require('http');
 const parser = require('../src/hrefParser');
 
 test('href parser', (t) => {
-  t.is(parser('www.baidu.com'), null);
-  t.is(parser(), null);
+  t.is(parser('http://www.baidu.com:65535').port, 65535);
+  t.throws(() => {
+    parser('www.baidu.com');
+  });
+  t.throws(() => {
+    parser();
+  });
+  t.throws(() => {
+    parser('http://www.baidu.com:0');
+  });
+  t.throws(() => {
+    parser('http://www.baidu.com:65536');
+  });
   t.deepEqual(parser('https://www.baidu.com'), {
     schema: https,
     port: 443,
@@ -36,8 +47,12 @@ test('href parser', (t) => {
     hostname: 'www.baidu.com',
     path: '/',
   });
-  t.is(parser('httpd://www.baidu.com:8822'), null);
-  t.is(parser('httpd://www.baidu.com'), null);
+  t.throws(() => {
+    parser('httpd://www.baidu.com:8822');
+  });
+  t.throws(() => {
+    parser('httpd://www.baidu.com');
+  });
   t.deepEqual(parser('http://www.baidu.com/aaa/bbb/ccc'), {
     schema: http,
     port: 80,
