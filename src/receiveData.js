@@ -1,8 +1,8 @@
 /* eslint no-use-before-define: 0 */
 
-module.exports = (req, limit) => new Promise((resolve, reject) => {
-  if (!req.readable) {
-    reject(new Error('source had close'));
+module.exports = (rs, limit) => new Promise((resolve, reject) => {
+  if (!rs.readable) {
+    reject(new Error('read stream already close'));
     return;
   }
   const state = {
@@ -17,8 +17,8 @@ module.exports = (req, limit) => new Promise((resolve, reject) => {
       buf.push(chunk);
       if (limit && size > limit) {
         state.completed = true;
-        reject(new Error(`buffer size exceed ${size}`));
-        req.destroy();
+        reject(new Error(`buffer exceed \`${size}\``));
+        rs.destroy();
       }
     }
   }
@@ -32,7 +32,7 @@ module.exports = (req, limit) => new Promise((resolve, reject) => {
   function handleClose() {
     if (!state.completed) {
       state.completed = true;
-      reject(new Error('request is close'));
+      reject(new Error('read stream early close'));
     }
     cleanup();
   }
@@ -44,23 +44,23 @@ module.exports = (req, limit) => new Promise((resolve, reject) => {
     cleanup();
   }
 
-  req.on('data', handleData);
-  req.once('end', handleEnd);
-  if (req.socket) {
-    req.socket.once('close', handleClose);
+  rs.on('data', handleData);
+  rs.once('end', handleEnd);
+  if (rs.socket) {
+    rs.socket.once('close', handleClose);
   }
-  req.once('close', handleClose);
-  req.once('error', handleError);
+  rs.once('close', handleClose);
+  rs.once('error', handleError);
 
   function cleanup() {
     if (!state.isCleanup) {
       state.isCleanup = true;
-      req.off('data', handleData);
-      req.off('end', handleEnd);
-      if (req.socket) {
-        req.socket.off('close', handleClose);
+      rs.off('data', handleData);
+      rs.off('end', handleEnd);
+      if (rs.socket) {
+        rs.socket.off('close', handleClose);
       }
-      req.off('close', handleClose);
+      rs.off('close', handleClose);
     }
   }
 });
