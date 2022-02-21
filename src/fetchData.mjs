@@ -1,5 +1,5 @@
 import createError from 'http-errors';
-import { omit } from 'lodash';
+import _ from 'lodash';
 import httpConnect from './connect.mjs';
 import hrefParser from './hrefParser.mjs';
 
@@ -10,7 +10,7 @@ export default (options) => new Promise((resolve, reject) => {
   const hrefOptions = hrefParser(options.url);
   const bufList = [];
   let size = 0;
-  const connect = httpConnect(omit({
+  const connect = httpConnect(_.omit({
     ...hrefOptions,
     ...options,
   }, ['match', 'url']), {

@@ -2,7 +2,7 @@
 import http from 'http';
 import https from 'https';
 import url from 'url';
-import { omit } from 'lodash';
+import _ from 'lodash';
 
 const createHttpHeader = (line, headers) => `${Object.keys(headers).reduce((head, key) => {
   const value = headers[key];
@@ -51,7 +51,7 @@ export default ({
   const proxyReq = schema.request({
     ...options,
     method: 'GET',
-    headers: omit(req.headers, ['host', 'referer']),
+    headers: _.omit(req.headers, ['host', 'referer']),
     ...other,
   });
 

@@ -5,11 +5,11 @@ import receiveData from './receiveData.mjs';
 import receiveJSON from './receiveJSON.mjs';
 import connectWebSocket from './connectWebSocket.mjs';
 
-export default {
-  httpConnect: connect,
-  httpForward: forward,
+export {
   fetchData,
   receiveData,
   receiveJSON,
-  webSocketConnect: connectWebSocket,
+  connect as httpConnect,
+  forward as httpForward,
+  connectWebSocket as webSocketConnect,
 };

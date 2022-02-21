@@ -1,5 +1,5 @@
 /* eslint no-use-before-define: 0 */
-import { omit } from 'lodash';
+import _ from 'lodash';
 import httpConnect from './connect.mjs';
 import hrefParser from './hrefParser.mjs';
 
@@ -19,7 +19,7 @@ export default (options, httpResponse) => {
 
   const connect = httpConnect({
     ...hrefOptions,
-    ...omit(options, ['url', 'logger']),
+    ..._.omit(options, ['url', 'logger']),
   }, {
     onData,
     onResponse,
