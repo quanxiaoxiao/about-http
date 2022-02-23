@@ -24,7 +24,7 @@ export default (options) => new Promise((resolve, reject) => {
       if (options.match) {
         try {
           const ret = options.match(res.statusCode, res.headers);
-          if (!ret) {
+          if (ret === false) {
             connect();
             if (!state.completed) {
               state.completed = true;
@@ -35,7 +35,8 @@ export default (options) => new Promise((resolve, reject) => {
           connect();
           if (!state.completed) {
             state.completed = true;
-            reject(createError(500, error.message));
+            const message = error.statusCode || error.status ? '' : error.message;
+            reject(createError(error.statusCode || error.status || 500, message));
           }
         }
       }
