@@ -10,7 +10,7 @@ npm install @quanxiaoxiao/about-http
 ## Usage
 
 ```javascript
-const { httpConnect, httpForward , fetchData, receiveData, receiveJSON } = require('about-http');
+import { httpConnect, httpForward , fetchData, receiveData, receiveJSON } from 'about-http';
 // httpForward(options, httpResponse)
 // httpConnect(options, { onError, onResponse, onData, onEnd, onClose })
 // fetchData(options)

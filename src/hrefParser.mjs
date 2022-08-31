@@ -21,11 +21,10 @@ export default (href) => {
   if (p <= 0 || p > 65535 || Number.isNaN(p)) {
     throw new Error(`port \`${p}\` invalid`);
   }
-  const result = {
+  return {
     schema: protocol === 'https:' ? https : http,
     port: p,
     path,
     hostname,
   };
-  return result;
 };

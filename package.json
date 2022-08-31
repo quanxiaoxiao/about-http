@@ -1,11 +1,12 @@
 {
   "name": "@quanxiaoxiao/about-http",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "",
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
+  "main": "./src/index.mjs",
   "exports": "./src/index.mjs",
   "scripts": {
     "lint": "eslint src/* --ignore-path .gitignore",
@@ -28,6 +29,6 @@
     "eslint-plugin-react-hooks": "^4.3.0"
   },
   "engines": {
-    "node": ">= 12"
+    "node": ">= 14.18.0"
   }
 }

@@ -1,43 +1,21 @@
 /* eslint no-use-before-define: 0 */
 import http from 'http';
+import _ from 'lodash';
 
 export default (
   options,
   {
-    onError,
     onResponse,
     onData,
     onEnd,
     onClose,
+    onError,
   },
 ) => {
-  [
-    {
-      name: 'onError',
-      fn: onError,
-    },
-    {
-      name: 'onData',
-      fn: onData,
-    },
-    {
-      name: 'onEnd',
-      fn: onEnd,
-    },
-    {
-      name: 'onClose',
-      fn: onClose,
-    },
-  ].forEach(({ name, fn }) => {
-    if (typeof fn !== 'function') {
-      throw new Error(`handle \`${name}\` is not bind`);
-    }
-  });
-  let httpResponse;
+  let httpClientResponse;
   const {
     schema = http,
     body,
-    ...other
   } = options;
 
   const state = {
@@ -49,45 +27,52 @@ export default (
     isCleanup: false,
   };
 
-  const httpRequest = schema.request(other);
+  const httpClientRequest = schema.request(_.omit(options, ['schema', 'body']));
 
-  const handleSocketConnect = () => {
+  const handleConnectOnSocket = () => {
     if (!state.isClose) {
       state.isConnect = true;
     }
   };
 
-  const handleReqSocket = (socket) => {
-    if (!state.isClose) {
-      socket.once('connect', handleSocketConnect);
+  const handleTimeoutOnSocket = () => {
+    if (!httpClientRequest.destroyed) {
+      httpClientRequest.destroy();
     }
   };
 
-  httpRequest.once('socket', handleReqSocket);
+  const handleHttpClientRequestOnSocket = (socket) => {
+    if (!state.isClose) {
+      socket.setTimeout(30 * 1000);
+      socket.once('connect', handleConnectOnSocket);
+      socket.once('timeout', handleTimeoutOnSocket);
+    }
+  };
 
-  function handleReqError(error) {
-    httpRequest.off('response', handleResponse);
-    if (!httpRequest.socket) {
-      httpRequest.off('socket', handleReqSocket);
-    } else if (httpRequest.socket.connecting) {
-      httpRequest.socket.off('socket', handleSocketConnect);
+  httpClientRequest.once('socket', handleHttpClientRequestOnSocket);
+
+  function handleHttpClientRequestOnError(error) {
+    httpClientRequest.off('response', handleHttpClientOnResponse);
+    if (!httpClientRequest.socket) {
+      httpClientRequest.off('socket', handleHttpClientRequestOnSocket);
+    } else if (httpClientRequest.socket.connecting) {
+      httpClientRequest.socket.off('socket', handleConnectOnSocket);
+      httpClientRequest.socket.off('timeout', handleTimeoutOnSocket);
     }
     state.isConnect = false;
-    if (!state.isClose && !state.isErrorEmit) {
+    if (onError && !state.isClose && !state.isErrorEmit) {
       state.isErrorEmit = true;
       onError(error);
     }
     state.isClose = true;
-    if (httpResponse && !httpResponse.destroyed) {
-      httpResponse.destroy();
-    }
   }
 
-  function handleResponse(r) {
-    httpResponse = r;
+  function handleHttpClientOnResponse(res) {
+    httpClientResponse = res;
 
-    function handleResEnd() {
+    function handleHttpClientResponseOnEnd() {
       if (!state.isClose
+        && onEnd
         && !state.isEndEmit
         && !state.isCloseEmit
         && !state.isErrorEmit
@@ -100,9 +85,10 @@ export default (
       cleanup();
     }
 
-    function handleResClose() {
+    function handleHttpClientResponseOnClose() {
       state.isConnect = false;
       if (!state.isClose
+        && onClose
         && !state.isErrorEmit
         && !state.isEndEmit
         && !state.isCloseEmit
@@ -117,20 +103,7 @@ export default (
     function handleErrorOnSource(error) {
       state.isConnect = false;
       if (!state.isErrorEmit
-        && !state.isClose
-        && !state.isEndEmit
-        && !state.isCloseEmit
-      ) {
-        state.isErrorEmit = true;
-        onError(error);
-      }
-      state.isClose = true;
-      cleanup();
-    }
-
-    function handleErrorOnDest(error) {
-      state.isConnect = false;
-      if (!state.isErrorEmit
+        && onError
         && !state.isClose
         && !state.isEndEmit
         && !state.isCloseEmit
@@ -144,75 +117,74 @@ export default (
 
     if (state.isConnect && !state.isClose) {
       if (onResponse) {
-        onResponse(httpResponse);
+        onResponse(httpClientResponse);
       }
-      httpRequest.once('error', handleErrorOnSource);
-      httpRequest.off('error', handleReqError);
-      httpResponse.once('error', handleErrorOnDest);
-      httpResponse.on('data', handleResData);
-      httpResponse.once('end', handleResEnd);
-      httpResponse.once('close', handleResClose);
+      httpClientRequest.once('error', handleErrorOnSource);
+      httpClientRequest.off('error', handleHttpClientRequestOnError);
+      httpClientResponse.on('data', handleHttpClientResponseOnData);
+      httpClientResponse.once('end', handleHttpClientResponseOnEnd);
+      httpClientResponse.once('close', handleHttpClientResponseOnClose);
     }
 
     function cleanup() {
       if (!state.isCleanup) {
         state.isCleanup = true;
-        httpResponse.off('data', handleResData);
-        httpResponse.off('close', handleResClose);
-        httpResponse.off('end', handleResEnd);
+        httpClientResponse.off('data', handleHttpClientResponseOnData);
+        httpClientResponse.off('close', handleHttpClientResponseOnClose);
+        httpClientResponse.off('end', handleHttpClientResponseOnEnd);
+        if (httpClientResponse.socket) {
+          httpClientRequest.socket.off('timeout', handleTimeoutOnSocket);
+        }
       }
     }
   }
 
-  function handleResData(chunk) {
+  function handleHttpClientResponseOnData(chunk) {
     if (!state.isClose) {
       onData(chunk);
-    } else if (!httpResponse.destroyed) {
-      httpResponse.destroy();
+    } else if (!httpClientRequest.destroyed) {
+      httpClientRequest.destroy();
     }
   }
 
-  httpRequest.on('error', handleReqError);
-  httpRequest.once('response', handleResponse);
+  httpClientRequest.on('error', handleHttpClientRequestOnError);
+  httpClientRequest.once('response', handleHttpClientOnResponse);
 
   if (body == null) {
-    httpRequest.end();
+    httpClientRequest.end();
   } else if (body && body.pipe) {
-    body.pipe(httpRequest);
+    body.pipe(httpClientRequest);
   } else if (typeof body === 'string' || Buffer.isBuffer(body)) {
-    httpRequest.end(body);
+    httpClientRequest.end(body);
   } else {
-    httpRequest.destroy();
-    throw new Error('body is not string or buffer');
+    httpClientRequest.destroy();
+    throw new Error('body is not string , buffer or stream');
   }
 
   const connect = () => {
     state.isClose = true;
     state.isConnect = false;
-    if (!httpRequest.destroyed) {
-      httpRequest.destroy();
-    }
-    if (httpResponse && !httpResponse.destroyed) {
-      httpResponse.destroy();
+    if (!httpClientRequest.destroyed) {
+      httpClientRequest.destroy();
     }
   };
 
   connect.resume = () => {
     if (state.isConnect
       && !state.isClose
-      && httpResponse
-      && httpResponse.isPaused()) {
-      httpResponse.resume();
+      && httpClientResponse
+      && httpClientResponse.isPaused()) {
+      httpClientResponse.resume();
     }
   };
 
   connect.pause = () => {
     if (state.isConnect
       && !state.isClose
-      && httpResponse
-      && !httpResponse.isPaused()
+      && httpClientResponse
+      && !httpClientResponse.isPaused()
     ) {
-      httpResponse.pause();
+      httpClientResponse.pause();
     }
   };
 
