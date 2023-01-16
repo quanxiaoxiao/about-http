@@ -105,7 +105,7 @@ export default (options, httpResponse) => {
     if (!state.isCleanup) {
       state.isCleanup = true;
       httpResponse.off('drain', handleDrain);
-      httpResponse.off('finish', handleClose);
+      httpResponse.off('finish', handleEnd);
       httpResponse.off('close', handleClose);
     }
   }
