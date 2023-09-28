@@ -23,7 +23,7 @@ export default (options) => new Promise((resolve, reject) => {
     onResponse: (res) => {
       if (options.match) {
         try {
-          const ret = options.match(res.statusCode, res.headers);
+          const ret = options.match(res.statusCode, res.headers, res);
           if (ret === false) {
             connect();
             if (!state.completed) {
