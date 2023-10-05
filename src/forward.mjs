@@ -29,6 +29,7 @@ export default (options, writeStream) => {
       'logger',
       'onResponse',
       'onData',
+      'onLookup',
       'onConnect',
       'onError',
       'onEnd',
@@ -40,12 +41,10 @@ export default (options, writeStream) => {
     onEnd: onClose,
     onClose,
     onConnect,
+    onLookup,
   });
 
   function onError(error) {
-    if (!options.onError) {
-      throw error;
-    }
     if (!writeStream.headersSent && !state.isClose && !writeStream.writableEnded) {
       writeStream.writeHead(error.statusCode || error.status || 502, {});
       if (!writeStream.headersSent) {
@@ -54,6 +53,9 @@ export default (options, writeStream) => {
     }
     if (!state.isClose && !writeStream.writableEnded) {
       writeStream.end(error.message);
+    }
+    if (!options.onError) {
+      throw error;
     }
     if (!state.isErrorEmit) {
       state.isErrorEmit = true;
@@ -64,6 +66,12 @@ export default (options, writeStream) => {
   function onConnect() {
     if (!state.isClose && options.onConnect) {
       options.onConnect();
+    }
+  }
+
+  function onLookup() {
+    if (!state.isClose && options.onLookup) {
+      options.onLookup();
     }
   }
 
