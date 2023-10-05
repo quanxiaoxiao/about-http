@@ -42,7 +42,7 @@ export default (options, writeStream) => {
 
   function onError(error) {
     if (!options.onError) {
-      throw new Error(error.message);
+      throw error;
     }
     if (!writeStream.headersSent && !state.isClose && !writeStream.writableEnded) {
       writeStream.writeHead(error.statusCode || error.status || 502, {});
@@ -77,7 +77,7 @@ export default (options, writeStream) => {
         connect();
         state.isClose = true;
         if (!options.onError) {
-          throw new Error(error.message);
+          throw error;
         }
         if (!state.isErrorEmit) {
           state.isErrorEmit = true;
@@ -154,7 +154,7 @@ export default (options, writeStream) => {
     cleanup();
     state.isClose = true;
     if (!options.onError) {
-      throw new Error(error.message);
+      throw error;
     }
     if (!state.isErrorEmit) {
       state.isErrorEmit = true;
