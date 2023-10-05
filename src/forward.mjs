@@ -3,13 +3,16 @@ import _ from 'lodash';
 import httpConnect from './connect.mjs';
 import hrefParser from './hrefParser.mjs';
 
-export default (options, httpResponse) => {
-  if (!httpResponse.writable || !httpResponse.socket) {
-    if (options.onError) {
+export default (options, writeStream) => {
+  if (!writeStream.writable || !writeStream.socket) {
+    if (!options.onError) {
+      throw new Error('write steam alread close');
+    } else {
       options.onError(new Error('write steam alread close'));
     }
     return;
   }
+
   const state = {
     isCleanup: false,
     isClose: false,
@@ -38,114 +41,138 @@ export default (options, httpResponse) => {
   });
 
   function onError(error) {
-    if (!state.isErrorEmit && options.onError) {
+    if (!options.onError) {
+      throw new Error(error.message);
+    }
+    if (!writeStream.headersSent && !state.isClose && !writeStream.writableEnded) {
+      writeStream.writeHead(error.statusCode || error.status || 502, {});
+      if (!writeStream.headersSent) {
+        writeStream.headersSent = true;
+      }
+    }
+    if (!state.isClose && !writeStream.writableEnded) {
+      writeStream.end(error.message);
+    }
+    if (!state.isErrorEmit) {
       state.isErrorEmit = true;
       options.onError(new Error(error.message));
-    }
-    if (!httpResponse.headersSent && !state.isClose && !httpResponse.writableEnded) {
-      httpResponse.writeHead(error.statusCode || error.status || 502, {});
-    }
-    if (!state.isClose && !httpResponse.writableEnded) {
-      httpResponse.end(error.message);
     }
   }
 
   function onResponse(res) {
     if (!state.isClose) {
       try {
-        if (!httpResponse.headersSent && !httpResponse.writableEnded) {
+        if (!writeStream.headersSent && !writeStream.writableEnded) {
           if (options.onResponse) {
-            options.onResponse(res.statusCode, res.headers);
+            options.onResponse(res.statusCode, res.headers, res);
           }
-          httpResponse.writeHead(res.statusCode, res.headers);
+          writeStream.writeHead(res.statusCode, res.headers);
+          if (!writeStream.headersSent) {
+            writeStream.headersSent = true;
+          }
         } else {
           connect();
         }
       } catch (error) {
-        if (!state.isErrorEmit && options.onError) {
+        connect();
+        state.isClose = true;
+        if (!options.onError) {
+          throw new Error(error.message);
+        }
+        if (!state.isErrorEmit) {
           state.isErrorEmit = true;
           options.onError(new Error(error.message));
         }
-        state.isClose = true;
-        connect();
       }
     } else {
-      if (!state.isErrorEmit && options.onError) {
+      connect();
+      if (!options.onError) {
+        throw new Error('source socket write EPIPE');
+      }
+      if (!state.isErrorEmit) {
         state.isErrorEmit = true;
         options.onError(new Error('source socket write EPIPE'));
       }
-      connect();
     }
   }
 
   function onClose() {
-    if (!state.isClose && !httpResponse.writableEnded) {
-      httpResponse.end();
+    if (!state.isClose && !writeStream.writableEnded) {
+      writeStream.end();
     }
   }
 
   function onData(chunk) {
-    if (!state.isClose && !httpResponse.writableEnded) {
+    if (!state.isClose && !writeStream.writableEnded) {
       if (options.onData) {
         options.onData(chunk);
       }
-      const ret = httpResponse.write(chunk);
+      const ret = writeStream.write(chunk);
       if (!ret) {
         connect.pause();
       }
     } else {
-      if (!state.isErrorEmit && options.onError) {
+      connect();
+      if (!options.onError) {
+        throw new Error('source socket write EPIPE');
+      }
+      if (!state.isErrorEmit) {
         state.isErrorEmit = true;
         options.onError(new Error('source socket write EPIPE'));
       }
-      connect();
     }
   }
 
-  function handleDrain() {
+  function handleDrainOnWriteStream() {
     connect.resume();
   }
 
-  function handleClose() {
-    state.isClose = true;
-    if (!state.isErrorEmit && options.onError) {
-      state.isErrorEmit = true;
-      options.onError(new Error('source socket close error'));
-    }
-    connect();
+  function handleEndOnWriteStream() {
     cleanup();
-  }
-
-  function handleEnd() {
     state.isClose = true;
     if (!state.isErrorEmit && !state.isEndEmit && options.onEnd) {
       state.isEndEmit = true;
       options.onEnd();
     }
+  }
+
+  function handleCloseOnWriteStream() {
+    connect();
     cleanup();
+    state.isClose = true;
+    if (!options.onError) {
+      throw new Error('source socket close error');
+    }
+    if (!state.isErrorEmit) {
+      state.isErrorEmit = true;
+      options.onError(new Error('source socket close error'));
+    }
+  }
+
+  function handleErrorOnWriteStream(error) {
+    connect();
+    cleanup();
+    state.isClose = true;
+    if (!options.onError) {
+      throw new Error(error.message);
+    }
+    if (!state.isErrorEmit) {
+      state.isErrorEmit = true;
+      options.onError(new Error(error.message));
+    }
   }
 
   function cleanup() {
     if (!state.isCleanup) {
       state.isCleanup = true;
-      httpResponse.off('drain', handleDrain);
-      httpResponse.off('finish', handleEnd);
-      httpResponse.off('close', handleClose);
+      writeStream.off('drain', handleDrainOnWriteStream);
+      writeStream.off('finish', handleEndOnWriteStream);
+      writeStream.off('close', handleCloseOnWriteStream);
     }
   }
 
-  function handleError(error) {
-    if (!state.isErrorEmit && options.onError) {
-      state.isErrorEmit = true;
-      options.onError(new Error(error.message));
-    }
-    state.isClose = true;
-    connect();
-    cleanup();
-  }
-
-  httpResponse.once('error', handleError);
-  httpResponse.on('drain', handleDrain);
-  httpResponse.once('finish', handleEnd);
-  httpResponse.once('close', handleClose);
+  writeStream.once('error', handleErrorOnWriteStream);
+  writeStream.on('drain', handleDrainOnWriteStream);
+  writeStream.once('finish', handleEndOnWriteStream);
+  writeStream.once('close', handleCloseOnWriteStream);
 };

@@ -1,6 +1,6 @@
-import http from 'http';
-import https from 'https';
-import { parse } from 'url';
+import http from 'node:http';
+import https from 'node:https';
+import { parse } from 'node:url';
 
 export default (href) => {
   if (!/^https?:\/\/\w+/.test(href)) {
