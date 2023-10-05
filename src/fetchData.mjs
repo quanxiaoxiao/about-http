@@ -1,13 +1,13 @@
 import createError from 'http-errors';
 import _ from 'lodash';
 import httpConnect from './connect.mjs';
-import hrefParser from './hrefParser.mjs';
+import parseUrl from './parseUrl.mjs';
 
 export default (options) => new Promise((resolve, reject) => {
   const state = {
     completed: false,
   };
-  const hrefOptions = hrefParser(options.url);
+  const hrefOptions = parseUrl(options.url);
   const bufList = [];
   let size = 0;
   const connect = httpConnect(_.omit({

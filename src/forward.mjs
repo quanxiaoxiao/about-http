@@ -1,7 +1,7 @@
 /* eslint no-use-before-define: 0 */
 import _ from 'lodash';
 import httpConnect from './connect.mjs';
-import hrefParser from './hrefParser.mjs';
+import parseUrl from './parseUrl.mjs';
 
 export default (options, writeStream) => {
   if (!writeStream.writable || !writeStream.socket) {
@@ -20,7 +20,7 @@ export default (options, writeStream) => {
     isEndEmit: false,
   };
 
-  const hrefOptions = hrefParser(options.url);
+  const hrefOptions = parseUrl(options.url);
 
   const connect = httpConnect({
     ...hrefOptions,
