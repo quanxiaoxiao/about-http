@@ -10,6 +10,8 @@ export default (
     onEnd,
     onClose,
     onError,
+    onConnect,
+    onLookup,
   },
 ) => {
   let httpClientResponse;
@@ -18,6 +20,15 @@ export default (
     body,
   } = options;
 
+  if (body) {
+    if (!body.pipe
+      && typeof body !== 'string'
+      && !Buffer.isBuffer(body)
+    ) {
+      throw new Error('body is not string , buffer or stream');
+    }
+  }
+
   const state = {
     isConnect: false,
     isClose: false,
@@ -25,6 +36,7 @@ export default (
     isCloseEmit: false,
     isEndEmit: false,
     isCleanup: false,
+    isLookup: false,
   };
 
   const httpClientRequest = schema.request(_.omit(options, ['schema', 'body']));
@@ -32,6 +44,9 @@ export default (
   const handleConnectOnSocket = () => {
     if (!state.isClose) {
       state.isConnect = true;
+      if (onConnect) {
+        onConnect();
+      }
     }
   };
 
@@ -41,23 +56,34 @@ export default (
     }
   };
 
+  const handleLookupOnSocket = () => {
+    state.isLookup = true;
+    if (!state.isClose && onLookup) {
+      onLookup();
+    }
+  };
+
   const handleHttpClientRequestOnSocket = (socket) => {
     if (!state.isClose) {
       socket.setTimeout(30 * 1000);
+      socket.once('lookup', handleLookupOnSocket);
       socket.once('connect', handleConnectOnSocket);
       socket.once('timeout', handleTimeoutOnSocket);
     }
   };
 
-  httpClientRequest.once('socket', handleHttpClientRequestOnSocket);
-
   function handleHttpClientRequestOnError(error) {
     httpClientRequest.off('response', handleHttpClientOnResponse);
     if (!httpClientRequest.socket) {
       httpClientRequest.off('socket', handleHttpClientRequestOnSocket);
-    } else if (httpClientRequest.socket.connecting) {
-      httpClientRequest.socket.off('socket', handleConnectOnSocket);
-      httpClientRequest.socket.off('timeout', handleTimeoutOnSocket);
+    } else {
+      if (!state.isLookup) {
+        httpClientRequest.socket.off('lookup', handleLookupOnSocket);
+      }
+      if (httpClientRequest.socket.connecting) {
+        httpClientRequest.socket.off('connect', handleConnectOnSocket);
+        httpClientRequest.socket.off('timeout', handleTimeoutOnSocket);
+      }
     }
     state.isConnect = false;
     if (onError && !state.isClose && !state.isErrorEmit) {
@@ -69,6 +95,17 @@ export default (
 
   function handleHttpClientOnResponse(res) {
     httpClientResponse = res;
+
+    if (!state.isClose && state.isConnect) {
+      if (onResponse) {
+        onResponse(httpClientResponse);
+      }
+      httpClientRequest.once('error', handleErrorOnSource);
+      httpClientRequest.off('error', handleHttpClientRequestOnError);
+      httpClientResponse.on('data', handleHttpClientResponseOnData);
+      httpClientResponse.once('end', handleHttpClientResponseOnEnd);
+      httpClientResponse.once('close', handleHttpClientResponseOnClose);
+    }
 
     function handleHttpClientResponseOnEnd() {
       if (!state.isClose
@@ -86,7 +123,6 @@ export default (
     }
 
     function handleHttpClientResponseOnClose() {
-      state.isConnect = false;
       if (!state.isClose
         && onClose
         && !state.isErrorEmit
@@ -96,12 +132,12 @@ export default (
         state.isCloseEmit = true;
         onClose();
       }
+      state.isConnect = false;
       state.isClose = true;
       cleanup();
     }
 
     function handleErrorOnSource(error) {
-      state.isConnect = false;
       if (!state.isErrorEmit
         && onError
         && !state.isClose
@@ -111,19 +147,9 @@ export default (
         state.isErrorEmit = true;
         onError(error);
       }
+      state.isConnect = false;
       state.isClose = true;
       cleanup();
-    }
-
-    if (state.isConnect && !state.isClose) {
-      if (onResponse) {
-        onResponse(httpClientResponse);
-      }
-      httpClientRequest.once('error', handleErrorOnSource);
-      httpClientRequest.off('error', handleHttpClientRequestOnError);
-      httpClientResponse.on('data', handleHttpClientResponseOnData);
-      httpClientResponse.once('end', handleHttpClientResponseOnEnd);
-      httpClientResponse.once('close', handleHttpClientResponseOnClose);
     }
 
     function cleanup() {
@@ -132,7 +158,7 @@ export default (
         httpClientResponse.off('data', handleHttpClientResponseOnData);
         httpClientResponse.off('close', handleHttpClientResponseOnClose);
         httpClientResponse.off('end', handleHttpClientResponseOnEnd);
-        if (httpClientResponse.socket) {
+        if (httpClientRequest.socket) {
           httpClientRequest.socket.off('timeout', handleTimeoutOnSocket);
         }
       }
@@ -148,22 +174,19 @@ export default (
   }
 
   httpClientRequest.on('error', handleHttpClientRequestOnError);
+  httpClientRequest.once('socket', handleHttpClientRequestOnSocket);
   httpClientRequest.once('response', handleHttpClientOnResponse);
 
   if (body == null) {
     httpClientRequest.end();
-  } else if (body && body.pipe) {
+  } else if (body.pipe) {
     body.pipe(httpClientRequest);
   } else if (typeof body === 'string' || Buffer.isBuffer(body)) {
     httpClientRequest.end(body);
-  } else {
-    httpClientRequest.destroy();
-    throw new Error('body is not string , buffer or stream');
   }
 
   const connect = () => {
     state.isClose = true;
-    state.isConnect = false;
     if (!httpClientRequest.destroyed) {
       httpClientRequest.destroy();
     }

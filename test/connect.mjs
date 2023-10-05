@@ -14,6 +14,14 @@ test.before((t) => {
             Buffer.from('Content-Length: 0\r\n\r\n'),
           ]));
         }
+        if (pathname === '/test11') {
+          const content = Buffer.from('cqq');
+          socket.write(Buffer.concat([
+            Buffer.from('HTTP/1.1 200 OK\r\n'),
+            Buffer.from(`Content-Length: ${content.length}\r\n\r\n`),
+            content,
+          ]));
+        }
         if (pathname === '/test2') {
           socket.end(Buffer.concat([
             Buffer.from('HTTP/1.1 200 OK\r\n'),
@@ -125,7 +133,7 @@ test.cb('connect', (t) => {
 });
 
 test.cb('connect1', (t) => {
-  t.plan(2);
+  t.plan(3);
   connect({
     hostname: 'localhost',
     port: 3334,
@@ -134,11 +142,45 @@ test.cb('connect1', (t) => {
     onError: () => {
       t.fail();
     },
+    onLookup: () => {
+      t.pass();
+    },
     onResponse: () => {
       t.pass();
     },
     onData: () => {
       t.fail();
+    },
+    onEnd: () => {
+      t.pass();
+    },
+    onClose: () => {
+      t.fail();
+    },
+  });
+  setTimeout(() => {
+    t.end();
+  }, 2000);
+});
+
+test.cb('connect11', (t) => {
+  t.plan(3);
+  connect({
+    hostname: '127.0.0.1',
+    port: 3334,
+    path: '/test11',
+  }, {
+    onError: () => {
+      t.fail();
+    },
+    onLookup: () => {
+      t.fail();
+    },
+    onResponse: () => {
+      t.pass();
+    },
+    onData: (chunk) => {
+      t.is(chunk.toString(), 'cqq');
     },
     onEnd: () => {
       t.pass();
@@ -321,12 +363,15 @@ test.cb('connect7', (t) => {
 });
 
 test.cb('connect abort1', (t) => {
-  t.plan(0);
+  t.plan(1);
   const cc = connect({
     hostname: 'localhost',
     port: 3334,
     path: '/abort1',
   }, {
+    onLookup: () => {
+      t.pass();
+    },
     onError: () => {
       t.fail();
     },

@@ -29,6 +29,7 @@ export default (options, writeStream) => {
       'logger',
       'onResponse',
       'onData',
+      'onConnect',
       'onError',
       'onEnd',
     ]),
@@ -38,6 +39,7 @@ export default (options, writeStream) => {
     onError,
     onEnd: onClose,
     onClose,
+    onConnect,
   });
 
   function onError(error) {
@@ -56,6 +58,12 @@ export default (options, writeStream) => {
     if (!state.isErrorEmit) {
       state.isErrorEmit = true;
       options.onError(new Error(error.message));
+    }
+  }
+
+  function onConnect() {
+    if (!state.isClose && options.onConnect) {
+      options.onConnect();
     }
   }
 
