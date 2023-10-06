@@ -4,7 +4,10 @@ import httpConnect from './connect.mjs';
 import parseUrl from './parseUrl.mjs';
 
 export default (options, writeStream) => {
-  if (!writeStream.writable || !writeStream.socket) {
+  if (!writeStream.writable
+    || !writeStream.socket
+    || !writeStream.socket.writable
+  ) {
     if (!options.onError) {
       throw new Error('write steam alread close');
     } else {
@@ -146,7 +149,9 @@ export default (options, writeStream) => {
   function handleEndOnWriteStream() {
     cleanup();
     state.isClose = true;
-    if (!state.isErrorEmit && !state.isEndEmit && options.onEnd) {
+    if (!state.isErrorEmit
+      && !state.isEndEmit
+      && options.onEnd) {
       state.isEndEmit = true;
       options.onEnd();
     }
@@ -157,9 +162,11 @@ export default (options, writeStream) => {
     cleanup();
     state.isClose = true;
     if (!options.onError) {
-      throw new Error('source socket close error');
+      if (!state.isEndEmit) {
+        throw new Error('source socket close error');
+      }
     }
-    if (!state.isErrorEmit) {
+    if (options.onError && !state.isErrorEmit && !state.isEndEmit) {
       state.isErrorEmit = true;
       options.onError(new Error('source socket close error'));
     }
@@ -183,12 +190,12 @@ export default (options, writeStream) => {
       state.isCleanup = true;
       writeStream.off('drain', handleDrainOnWriteStream);
       writeStream.off('finish', handleEndOnWriteStream);
-      writeStream.off('close', handleCloseOnWriteStream);
+      writeStream.socket.off('close', handleCloseOnWriteStream);
     }
   }
 
   writeStream.once('error', handleErrorOnWriteStream);
   writeStream.on('drain', handleDrainOnWriteStream);
   writeStream.once('finish', handleEndOnWriteStream);
-  writeStream.once('close', handleCloseOnWriteStream);
+  writeStream.socket.once('close', handleCloseOnWriteStream);
 };
